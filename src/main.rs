@@ -105,6 +105,7 @@ fn main() {
                 std::process::exit(0);
             }
 
+            // can be even or odd !
             let outputs_to_check: Vec<XOnlyPublicKey> = given
                 .outputs
                 .iter()
@@ -113,7 +114,11 @@ fn main() {
 
             let outpoints_hash = hash_outpoints(&given.outpoints);
             let A_sum = get_A_sum_public_keys(&given.input_pub_keys);
-            let labels = &given.labels;
+            let labels = match &given.labels.len() {
+                0 => None,
+                _ => Some(&given.labels),
+            };
+
             let mut add_to_wallet = scanning(
                 b_scan,
                 B_spend,

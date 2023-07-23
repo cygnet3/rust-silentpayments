@@ -51,7 +51,7 @@ pub fn get_A_sum_public_keys(input: &Vec<String>) -> PublicKey {
         .map(|x| match PublicKey::from_str(&x) {
             Ok(key) => key,
             Err(_) => {
-                // println!("using x only public key with even pairing");
+                // we always assume even pairing for input public keys if they are omitted
                 let x_only_public_key = XOnlyPublicKey::from_str(&x).unwrap();
                 PublicKey::from_x_only_public_key(x_only_public_key, secp256k1::Parity::Even)
             }
@@ -106,7 +106,7 @@ pub fn create_labeled_silent_payment_address(
     encode_silent_payment_address(B_scan, B_m, hrp, version)
 }
 
-fn calculate_P_n(B_spend: &PublicKey, t_n: [u8; 32]) -> XOnlyPublicKey {
+fn calculate_P_n(B_spend: &PublicKey, t_n: [u8; 32]) -> PublicKey {
     let secp = Secp256k1::new();
 
     let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())
@@ -116,9 +116,8 @@ fn calculate_P_n(B_spend: &PublicKey, t_n: [u8; 32]) -> XOnlyPublicKey {
         .mul_tweak(&secp, &Scalar::from_be_bytes(t_n).unwrap())
         .unwrap();
     let P_n = intermediate.combine(&B_spend).unwrap();
-    let (P_n_xonly, _) = P_n.x_only_public_key();
 
-    P_n_xonly
+    P_n
 }
 
 fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> [u8; 32] {
@@ -154,26 +153,63 @@ pub fn scanning(
     A_sum: PublicKey,
     outpoints_hash: [u8; 32],
     outputs_to_check: Vec<XOnlyPublicKey>,
-    _labels: &HashMap<String, BigUint>,
+    labels: Option<&HashMap<String, BigUint>>,
 ) -> Vec<WalletItem> {
+    let secp = secp256k1::Secp256k1::new();
     let ecdh_shared_secret = calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash);
     let mut n = 0;
     let mut wallet: Vec<WalletItem> = vec![];
 
-    loop {
+    let mut found = true;
+    while found {
+        found = false;
         let t_n = calculate_t_n(&ecdh_shared_secret, n);
-        let P_n_xonly = calculate_P_n(&B_spend, t_n);
-        if outputs_to_check.iter().any(|&output| P_n_xonly.eq(&output)) {
+        let P_n = calculate_P_n(&B_spend, t_n);
+        let (P_n_xonly, _) = P_n.x_only_public_key();
+        if outputs_to_check.iter().any(|&output| output.eq(&P_n_xonly)) {
             let pub_key = hex::encode(P_n_xonly.serialize());
             let priv_key_tweak = hex::encode(t_n);
             wallet.push(WalletItem {
                 pub_key,
                 priv_key_tweak,
             });
-
             n += 1;
-        } else {
-            break;
+            found = true;
+        } else if let Some(labels) = labels {
+            let P_n_negated = P_n.negate(&secp);
+            for output in &outputs_to_check {
+                let output_even = output.public_key(secp256k1::Parity::Even);
+                let output_odd = output.public_key(secp256k1::Parity::Odd);
+
+                // same as giving odd parity (?)
+                // let output_negated = output_even.negate(&secp);
+
+                let m_G_sub_even = output_even.combine(&P_n_negated).unwrap();
+                let m_G_sub_odd = output_odd.combine(&P_n_negated).unwrap();
+                let keys: Vec<PublicKey> = vec![m_G_sub_even, m_G_sub_odd ];
+                for labelkeystr in labels.keys() {
+                    let labelkey = PublicKey::from_str(labelkeystr).unwrap();
+                    if keys.iter().any(|x| x.eq(&labelkey)) {
+                        let P_nm = hex::encode(output.serialize());
+                        let label = labels.get(labelkeystr).unwrap();
+                        let label_in_bytes = label.to_bytes_be();
+                        let mut array = [0u8; 32];
+                        let start = array.len() - label_in_bytes.len();
+
+                        //ugly, fails if bytes > 32
+                        array[start..].copy_from_slice(&label_in_bytes);
+                        let label_scalar = Scalar::from_be_bytes(array).unwrap();
+                        let t_n_as_secret_key = SecretKey::from_slice(&t_n).unwrap();
+                        let priv_key_tweak = hex::encode(t_n_as_secret_key.add_tweak(&label_scalar).unwrap().secret_bytes());
+                        wallet.push(WalletItem {
+                            pub_key: P_nm,
+                            priv_key_tweak,
+                        });
+                        n += 1;
+                        found = true;
+                    }
+                }
+            }
         }
     }
     wallet
