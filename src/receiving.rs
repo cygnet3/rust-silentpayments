@@ -1,5 +1,6 @@
 use bech32::ToBase32;
 
+use num_bigint::BigUint;
 use secp256k1::{hashes::Hash, Message, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::{collections::HashMap, str::FromStr};
 
@@ -50,7 +51,7 @@ pub fn get_A_sum_public_keys(input: &Vec<String>) -> PublicKey {
         .map(|x| match PublicKey::from_str(&x) {
             Ok(key) => key,
             Err(_) => {
-                println!("using x only public key with even pairing");
+                // println!("using x only public key with even pairing");
                 let x_only_public_key = XOnlyPublicKey::from_str(&x).unwrap();
                 PublicKey::from_x_only_public_key(x_only_public_key, secp256k1::Parity::Even)
             }
@@ -78,6 +79,31 @@ pub fn encode_silent_payment_address(
     data.insert(0, version);
 
     bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
+}
+
+pub fn create_labeled_silent_payment_address(
+    B_scan: PublicKey,
+    B_spend: PublicKey,
+    m: &BigUint,
+    hrp: Option<&str>,
+    version: Option<u8>,
+) -> String {
+    let bytes = m.to_bytes_be();
+
+    let mut array = [0u8; 32];
+    let start = array.len() - bytes.len();
+
+    array[start..].copy_from_slice(&bytes);
+
+    let scalar = Scalar::from_be_bytes(array).unwrap();
+    let secp = Secp256k1::new();
+    let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())
+        .unwrap()
+        .public_key(&secp);
+    let intermediate = G.mul_tweak(&secp, &scalar).unwrap();
+    let B_m = intermediate.combine(&B_spend).unwrap();
+
+    encode_silent_payment_address(B_scan, B_m, hrp, version)
 }
 
 fn calculate_P_n(B_spend: &PublicKey, t_n: [u8; 32]) -> XOnlyPublicKey {
@@ -128,7 +154,7 @@ pub fn scanning(
     A_sum: PublicKey,
     outpoints_hash: [u8; 32],
     outputs_to_check: Vec<XOnlyPublicKey>,
-    _labels: &HashMap<String, u32>,
+    _labels: &HashMap<String, BigUint>,
 ) -> Vec<WalletItem> {
     let ecdh_shared_secret = calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash);
     let mut n = 0;

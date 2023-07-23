@@ -14,8 +14,9 @@ use std::{collections::HashSet, io::Write};
 use crate::{
     input::ComparableHashMap,
     receiving::{
-        derive_silent_payment_key_pair, encode_silent_payment_address, get_A_sum_public_keys,
-        scanning, verify_and_calculate_signatures,
+        create_labeled_silent_payment_address, derive_silent_payment_key_pair,
+        encode_silent_payment_address, get_A_sum_public_keys, scanning,
+        verify_and_calculate_signatures,
     },
     sending::create_outputs,
 };
@@ -70,6 +71,7 @@ fn main() {
             } else {
                 eprintln!("sending expected = {:#?}", expected_comparable);
                 eprintln!("sending outputs = {:#?}", outputs_comparable);
+                std::process::exit(0);
             }
         }
 
@@ -88,8 +90,15 @@ fn main() {
             let mut receiving_addresses: Vec<String> = vec![];
             receiving_addresses.push(encode_silent_payment_address(B_scan, B_spend, None, None));
 
-            // todo label support
-            if !receiving_addresses.eq(&expected.addresses) {
+            for (_, label) in &given.labels {
+                receiving_addresses.push(create_labeled_silent_payment_address(
+                    B_scan, B_spend, label, None, None,
+                ));
+            }
+
+            let set1: HashSet<_> = receiving_addresses.iter().collect();
+            let set2: HashSet<_> = expected.addresses.iter().collect();
+            if !set1.eq(&set2) {
                 println!("receiving addressess failed");
                 eprintln!("receiving_addresses = {:#?}", receiving_addresses);
                 eprintln!("expected.addresses = {:#?}", expected.addresses);
@@ -105,7 +114,6 @@ fn main() {
             let outpoints_hash = hash_outpoints(&given.outpoints);
             let A_sum = get_A_sum_public_keys(&given.input_pub_keys);
             let labels = &given.labels;
-
             let mut add_to_wallet = scanning(
                 b_scan,
                 B_spend,

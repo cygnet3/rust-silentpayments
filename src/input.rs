@@ -1,3 +1,4 @@
+use num_bigint::BigUint;
 use serde::Deserialize;
 use serde_json::{from_str, Value};
 use std::hash::{Hash, Hasher};
@@ -22,11 +23,11 @@ pub struct ReceivingDataGiven {
     pub input_pub_keys: Vec<String>,
     pub bip32_seed: String,
     #[serde(deserialize_with = "empty_array_as_map")]
-    pub labels: HashMap<String, u32>,
+    pub labels: HashMap<String, BigUint>,
     pub outputs: Vec<String>,
 }
 
-fn empty_array_as_map<'de, D>(deserializer: D) -> Result<HashMap<String, u32>, D::Error>
+fn empty_array_as_map<'de, D>(deserializer: D) -> Result<HashMap<String, BigUint>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -41,22 +42,25 @@ where
             }
         }
         Value::Object(map) => {
-            let result: HashMap<String, u32> = map
+            // let len = map.len();
+            let result: HashMap<String, BigUint> = map
                 .into_iter()
-                .map(|(k, v)| {
+                .filter_map(|(k, v)| {
                     if let Value::Number(num) = v {
                         num.as_i64()
-                            .and_then(|n| u32::from_str(&n.to_string()).ok())
+                            .and_then(|n| BigUint::from_str(&n.to_string()).ok())
                             .map(|n| (k, n))
                     } else {
                         None
                     }
                 })
-                .collect::<Option<_>>()
-                .ok_or(serde::de::Error::custom(
-                    "Failed to parse map values as u32",
-                ))?;
+                .collect();
 
+            // if result.len() != len {
+            //     return Err(serde::de::Error::custom(
+            //         "Failed to parse map values as BigUint",
+            //     ));
+            // }
             Ok(result)
         }
         _ => Err(serde::de::Error::custom("Expected map or empty array")),
