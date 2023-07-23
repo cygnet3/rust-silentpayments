@@ -1,19 +1,14 @@
 use bech32::ToBase32;
 
-use num_bigint::BigUint;
 use secp256k1::{hashes::Hash, Message, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::{collections::HashMap, str::FromStr};
 
-use crate::{
-    input::ReceivingDataOutputs,
-    sha256,
-    utils::ser_uint32,
-};
+use crate::{input::ReceivingDataOutputs, sha256, utils::ser_uint32};
 
 pub fn get_receiving_addresses(
     B_scan: PublicKey,
     B_spend: PublicKey,
-    labels: &HashMap<String, BigUint>,
+    labels: &HashMap<String, String>,
 ) -> Vec<String> {
     let mut receiving_addresses: Vec<String> = vec![];
     receiving_addresses.push(encode_silent_payment_address(B_scan, B_spend, None, None));
@@ -104,18 +99,13 @@ fn encode_silent_payment_address(
 fn create_labeled_silent_payment_address(
     B_scan: PublicKey,
     B_spend: PublicKey,
-    m: &BigUint,
+    m: &String,
     hrp: Option<&str>,
     version: Option<u8>,
 ) -> String {
-    let bytes = m.to_bytes_be();
+    let bytes = hex::decode(m).unwrap().try_into().unwrap();
 
-    let mut array = [0u8; 32];
-    let start = array.len() - bytes.len();
-
-    array[start..].copy_from_slice(&bytes);
-
-    let scalar = Scalar::from_be_bytes(array).unwrap();
+    let scalar = Scalar::from_be_bytes(bytes).unwrap();
     let secp = Secp256k1::new();
     let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())
         .unwrap()
@@ -173,7 +163,7 @@ pub fn scanning(
     A_sum: PublicKey,
     outpoints_hash: [u8; 32],
     outputs_to_check: Vec<XOnlyPublicKey>,
-    labels: Option<&HashMap<String, BigUint>>,
+    labels: Option<&HashMap<String, String>>,
 ) -> Vec<WalletItem> {
     let secp = secp256k1::Secp256k1::new();
     let ecdh_shared_secret = calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash);
@@ -212,13 +202,8 @@ pub fn scanning(
                     if keys.iter().any(|x| x.eq(&labelkey)) {
                         let P_nm = hex::encode(output.serialize());
                         let label = labels.get(labelkeystr).unwrap();
-                        let label_in_bytes = label.to_bytes_be();
-                        let mut array = [0u8; 32];
-                        let start = array.len() - label_in_bytes.len();
-
-                        //ugly, fails if bytes > 32
-                        array[start..].copy_from_slice(&label_in_bytes);
-                        let label_scalar = Scalar::from_be_bytes(array).unwrap();
+                        let label_bytes = hex::decode(label).unwrap().try_into().unwrap();
+                        let label_scalar = Scalar::from_be_bytes(label_bytes).unwrap();
                         let t_n_as_secret_key = SecretKey::from_slice(&t_n).unwrap();
                         let priv_key_tweak = hex::encode(
                             t_n_as_secret_key

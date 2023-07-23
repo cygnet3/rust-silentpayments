@@ -1,8 +1,8 @@
-use num_bigint::BigUint;
 use serde::Deserialize;
-use serde_json::{from_str, Value};
+use serde_json::from_str;
+
 use std::hash::{Hash, Hasher};
-use std::{collections::HashMap, fs::File, io::Read, str::FromStr};
+use std::{collections::HashMap, fs::File, io::Read};
 
 #[derive(Debug, Deserialize)]
 pub struct TestData {
@@ -22,49 +22,8 @@ pub struct ReceivingDataGiven {
     pub outpoints: Vec<(String, u32)>,
     pub input_pub_keys: Vec<String>,
     pub bip32_seed: String,
-    #[serde(deserialize_with = "empty_array_as_map")]
-    pub labels: HashMap<String, BigUint>,
+    pub labels: HashMap<String, String>,
     pub outputs: Vec<String>,
-}
-
-fn empty_array_as_map<'de, D>(deserializer: D) -> Result<HashMap<String, BigUint>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let v = Value::deserialize(deserializer)?;
-
-    match v {
-        Value::Array(array) => {
-            if array.is_empty() {
-                Ok(HashMap::new())
-            } else {
-                Err(serde::de::Error::custom("Expected map or empty array"))
-            }
-        }
-        Value::Object(map) => {
-            // let len = map.len();
-            let result: HashMap<String, BigUint> = map
-                .into_iter()
-                .filter_map(|(k, v)| {
-                    if let Value::Number(num) = v {
-                        num.as_i64()
-                            .and_then(|n| BigUint::from_str(&n.to_string()).ok())
-                            .map(|n| (k, n))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-
-            // if result.len() != len {
-            //     return Err(serde::de::Error::custom(
-            //         "Failed to parse map values as BigUint",
-            //     ));
-            // }
-            Ok(result)
-        }
-        _ => Err(serde::de::Error::custom("Expected map or empty array")),
-    }
 }
 
 #[derive(Debug, Deserialize)]
