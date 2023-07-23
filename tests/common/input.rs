@@ -1,10 +1,12 @@
+#![allow(non_snake_case)]
+use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use serde::Deserialize;
 use serde_json::from_str;
+use silentpayments::structs::OutputWithSignature;
 
 use std::hash::{Hash, Hasher};
+use std::str::FromStr;
 use std::{collections::HashMap, fs::File, io::Read};
-
-use crate::structs::OutputWithSignature;
 
 #[derive(Debug, Deserialize)]
 pub struct TestData {
@@ -91,8 +93,42 @@ impl Hash for ComparableHashMap {
 }
 
 pub fn read_file() -> Vec<TestData> {
-    let mut file = File::open("tests/send_and_receive_test_vectors.json").unwrap();
+    let mut file = File::open("tests/resources/send_and_receive_test_vectors.json").unwrap();
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
     from_str(&contents).unwrap()
+}
+
+// Note: this function is only temporary.
+// The format for keys from the test vector will be changed soon.
+// Until then, this method is used.
+pub fn get_testing_silent_payment_key_pair(
+    bytes: &str,
+) -> (SecretKey, SecretKey, PublicKey, PublicKey) {
+    let secp = Secp256k1::new();
+
+    // test vector key input will change soon
+
+    let (b_scan_str, b_spend_str) = match bytes {
+        "0x01" => (
+            "a6dba5c9af3ee645c2287c6b1d558d3ea968502ef5343398f48715e624ddd183",
+            "d96b8703387c5ffec5d256f80d4dc9f39152b2150fd05e469b011215251aa259",
+        ),
+        "0x00" => (
+            "59984d7f53ff7e0ee345c6e9f5d5e47ae957abf3b55f2272152561db7e700255",
+            "d41394c1c9dc1745c50028dc550765dfad87e50b3fdfb15a3e4290ec59ce34c6",
+        ),
+        "0x02" => (
+            "34c45d7dc16b07aba41463fd5437fad2dd05e3da8afd1805ae13062882d4f7c4",
+            "944d675e840f52af695d1415564912173b7a4ca740dc946875f9f64b97f8090c",
+        ),
+        _ => ("", ""),
+    };
+
+    let b_scan = SecretKey::from_str(b_scan_str).unwrap();
+    let b_spend = SecretKey::from_str(b_spend_str).unwrap();
+
+    let B_scan = b_scan.public_key(&secp);
+    let B_spend = b_spend.public_key(&secp);
+    (b_scan, b_spend, B_scan, B_spend)
 }
