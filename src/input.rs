@@ -91,7 +91,7 @@ impl Hash for ComparableHashMap {
 }
 
 pub fn read_file() -> Vec<TestData> {
-    let mut file = File::open("send_and_receive_test_vectors.json").unwrap();
+    let mut file = File::open("tests/send_and_receive_test_vectors.json").unwrap();
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
     from_str(&contents).unwrap()
