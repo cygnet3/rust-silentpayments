@@ -3,10 +3,7 @@ use bech32::FromBase32;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey};
 use std::{collections::HashMap, str::FromStr};
 
-use crate::{
-    input::SendingDataGiven,
-    utils::{ser_uint32, sha256, hash_outpoints},
-};
+use crate::utils::{hash_outpoints, ser_uint32, sha256};
 
 fn get_a_sum_secret_keys(input: &Vec<(String, bool)>) -> SecretKey {
     let secp = Secp256k1::new();
@@ -44,17 +41,16 @@ fn decode_silent_payment_address(addr: &str) -> (PublicKey, PublicKey) {
     (B_scan, B_spend)
 }
 
-pub fn create_outputs(given: &SendingDataGiven) -> Vec<HashMap<String, f32>> {
+pub fn create_outputs(
+    outpoints: &Vec<(String, u32)>,
+    input_priv_keys: &Vec<(String, bool)>,
+    recipients: &Vec<(String, f32)>,
+) -> Vec<HashMap<String, f32>> {
     let secp = Secp256k1::new();
-    // let G =
 
-    let outpoints: &Vec<(String, u32)> = &given.outpoints;
     let outpoints_hash = hash_outpoints(outpoints);
 
-    let input_priv_keys = &given.input_priv_keys;
     let a_sum = get_a_sum_secret_keys(input_priv_keys);
-
-    let recipients = &given.recipients;
 
     let mut silent_payment_groups: HashMap<PublicKey, Vec<(PublicKey, f32)>> = HashMap::new();
     for (payment_address, amount) in recipients {
@@ -103,7 +99,6 @@ pub fn create_outputs(given: &SendingDataGiven) -> Vec<HashMap<String, f32>> {
             result.push(toAdd);
             n += 1;
         }
-        // n += 1;
     }
     result
 }

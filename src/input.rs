@@ -4,6 +4,8 @@ use serde_json::from_str;
 use std::hash::{Hash, Hasher};
 use std::{collections::HashMap, fs::File, io::Read};
 
+use crate::structs::OutputWithSignature;
+
 #[derive(Debug, Deserialize)]
 pub struct TestData {
     pub comment: String,
@@ -29,14 +31,7 @@ pub struct ReceivingDataGiven {
 #[derive(Debug, Deserialize)]
 pub struct ReceivingDataExpected {
     pub addresses: Vec<String>,
-    pub outputs: Vec<ReceivingDataOutputs>,
-}
-
-#[derive(Debug, Deserialize, Eq, PartialEq)]
-pub struct ReceivingDataOutputs {
-    pub pub_key: String,
-    pub priv_key_tweak: String,
-    pub signature: String,
+    pub outputs: Vec<OutputWithSignature>,
 }
 
 #[derive(Debug, Deserialize)]
