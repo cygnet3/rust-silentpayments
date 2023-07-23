@@ -4,29 +4,23 @@ mod receiving;
 mod sending;
 
 use hex::FromHex;
-use secp256k1::PublicKey;
-use std::collections::HashSet;
+use secp256k1::{
+    hashes::{sha256, Hash}, PublicKey,
+};
 use std::str::FromStr;
-
-use sha2::{Digest, Sha256};
+use std::{collections::HashSet, io::Write};
 
 use crate::{
     input::ComparableHashMap,
     receiving::{
         derive_silent_payment_key_pair, encode_silent_payment_address, get_A_sum_public_keys,
-        scanning,
+        scanning, verify_and_calculate_signatures,
     },
     sending::create_outputs,
 };
 
 fn sha256(message: &[u8]) -> [u8; 32] {
-    let mut hasher = Sha256::new();
-    hasher.update(message);
-    let result = hasher.finalize();
-
-    let mut hash = [0u8; 32];
-    hash.copy_from_slice(&result[..]);
-    hash
+    sha256::Hash::hash(message).to_byte_array()
 }
 
 fn ser_uint32(u: u32) -> Vec<u8> {
@@ -45,16 +39,13 @@ fn hash_outpoints(sending_data: &Vec<(String, u32)>) -> [u8; 32] {
     }
     outpoints.sort();
 
-    let mut hasher = Sha256::new();
+    let mut engine = sha256::HashEngine::default();
+
     for v in outpoints {
-        hasher.update(&v[..]);
+        engine.write_all(&v).unwrap();
     }
 
-    let result = hasher.finalize();
-
-    let mut hash = [0u8; 32];
-    hash.copy_from_slice(&result[..]);
-    hash
+    sha256::Hash::from_engine(engine).to_byte_array()
 }
 
 fn main() {
@@ -71,6 +62,7 @@ fn main() {
 
     let mut receiving_addresses: Vec<String> = vec![];
     receiving_addresses.push(encode_silent_payment_address(B_scan, B_spend, None, None));
+    eprintln!("receiving_addresses = {:?}", receiving_addresses);
 
     // todo labels
 
@@ -84,7 +76,7 @@ fn main() {
     let A_sum = get_A_sum_public_keys(&given.input_pub_keys);
     let labels = &given.labels;
 
-    let add_to_wallet = scanning(
+    let mut add_to_wallet = scanning(
         b_scan,
         B_spend,
         A_sum,
@@ -92,11 +84,15 @@ fn main() {
         outputs_to_check,
         labels,
     );
-    eprintln!("add_to_wallet = {:?}", add_to_wallet);
 
-    // todo check signature
+    let res = verify_and_calculate_signatures(&mut add_to_wallet, b_spend).unwrap();
+    if res.eq(&expected.outputs) {
+        println!("succeeded");
+    } else {
+        println!("failed");
+    }
 
-    // check that sending outputs are equal to sending test
+    // todo: check that sending outputs are equal to sending test
 
     for test in testdata {
         eprintln!("test.comment = {:?}", test.comment);

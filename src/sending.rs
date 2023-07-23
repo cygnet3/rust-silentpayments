@@ -3,8 +3,6 @@ use bech32::FromBase32;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey};
 use std::{collections::HashMap, str::FromStr};
 
-use sha2::Digest;
-
 use crate::{hash_outpoints, input::SendingDataGiven, ser_uint32, sha256};
 
 fn get_a_sum_secret_keys(input: &Vec<(String, bool)>) -> SecretKey {

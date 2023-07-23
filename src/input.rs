@@ -69,7 +69,7 @@ pub struct ReceivingDataExpected {
     pub outputs: Vec<ReceivingDataOutputs>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct ReceivingDataOutputs {
     pub pub_key: String,
     pub priv_key_tweak: String,

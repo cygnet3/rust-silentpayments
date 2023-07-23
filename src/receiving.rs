@@ -1,9 +1,11 @@
 use bech32::ToBase32;
 
-use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
+use secp256k1::{
+    hashes::Hash, schnorr::Signature, Message, PublicKey, Scalar, Secp256k1, SecretKey,
+};
 use std::{collections::HashMap, str::FromStr};
 
-use crate::{ser_uint32, sha256};
+use crate::{input::ReceivingDataOutputs, ser_uint32, sha256};
 
 pub fn derive_silent_payment_key_pair(
     _bytes: Vec<u8>,
@@ -66,8 +68,8 @@ pub fn encode_silent_payment_address(
 
 #[derive(Debug)]
 pub struct WalletItem {
-    pub_key: String,
-    priv_key_tweak: String,
+    pub pub_key: String,
+    pub priv_key_tweak: String,
 }
 
 pub fn scanning(
@@ -110,4 +112,45 @@ pub fn scanning(
         }
     }
     wallet
+}
+
+pub fn verify_and_calculate_signatures(
+    add_to_wallet: &mut Vec<WalletItem>,
+    b_spend: SecretKey,
+) -> Result<Vec<ReceivingDataOutputs>, secp256k1::Error> {
+    let secp = secp256k1::Secp256k1::new();
+    let msg = Message::from_hashed_data::<sha256::Hash>(b"message");
+    let aux = sha256::Hash::hash(b"random auxiliary data").to_byte_array();
+
+    let mut res: Vec<ReceivingDataOutputs> = vec![];
+    for output in add_to_wallet {
+        let pubkey = PublicKey::from_str(&output.pub_key).unwrap();
+        let tweak = hex::decode(&output.priv_key_tweak).unwrap();
+        let scalar = Scalar::from_be_bytes(tweak.try_into().unwrap()).unwrap();
+        let mut full_priv_key = b_spend.add_tweak(&scalar).unwrap();
+
+        let (_, parity) = full_priv_key.x_only_public_key(&secp);
+
+        if parity == secp256k1::Parity::Odd {
+            full_priv_key = full_priv_key.negate();
+        }
+
+        let sig = secp.sign_schnorr_with_aux_rand(&msg, &full_priv_key.keypair(&secp), &aux);
+
+        eprintln!("sig = {:?}", sig);
+
+        let (x_only_public_key, _) = pubkey.x_only_public_key();
+        secp.verify_schnorr(&sig, &msg, &x_only_public_key)?;
+
+        res.push(ReceivingDataOutputs {
+            pub_key: output.pub_key[2..].to_string(),
+            priv_key_tweak: output.priv_key_tweak.clone(),
+            signature: sig.to_string(),
+        });
+    }
+    Ok(res)
+}
+
+fn check_expected_outputs(add_to_wallet: Vec<WalletItem>, outputs: &Vec<ReceivingDataOutputs>) {
+    for item in add_to_wallet {}
 }
