@@ -1,8 +1,6 @@
 use bech32::ToBase32;
 
-use secp256k1::{
-    hashes::Hash, schnorr::Signature, Message, PublicKey, Scalar, Secp256k1, SecretKey,
-};
+use secp256k1::{hashes::Hash, Message, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::{collections::HashMap, str::FromStr};
 
 use crate::{input::ReceivingDataOutputs, ser_uint32, sha256};
@@ -30,17 +28,19 @@ pub fn derive_silent_payment_key_pair(
 
     let B_scan = b_scan.public_key(&secp);
     let B_spend = b_spend.public_key(&secp);
-
-    eprintln!("B_scan = {:?}", B_scan.to_string());
-    eprintln!("B_spend = {:?}", B_spend.to_string());
-
     (b_scan, b_spend, B_scan, B_spend)
 }
 
 pub fn get_A_sum_public_keys(input: &Vec<String>) -> PublicKey {
     let keys: Vec<PublicKey> = input
         .iter()
-        .map(|x| PublicKey::from_str(&x).unwrap())
+        .map(|x| match PublicKey::from_str(&x) {
+            Ok(key) => key,
+            Err(_) => {
+                let x_only_public_key = XOnlyPublicKey::from_str(&x).unwrap();
+                PublicKey::from_x_only_public_key(x_only_public_key, secp256k1::Parity::Even)
+            }
+        })
         .collect();
     let keys_refs: Vec<&PublicKey> = keys.iter().collect();
 
@@ -77,7 +77,7 @@ pub fn scanning(
     B_spend: PublicKey,
     A_sum: PublicKey,
     outpoints_hash: [u8; 32],
-    outputs_to_check: Vec<PublicKey>,
+    outputs_to_check: Vec<XOnlyPublicKey>,
     _labels: &HashMap<String, u32>,
 ) -> Vec<WalletItem> {
     let secp = Secp256k1::new();
@@ -99,11 +99,12 @@ pub fn scanning(
         .mul_tweak(&secp, &Scalar::from_be_bytes(t_n).unwrap())
         .unwrap();
     let P_n = intermediate.combine(&B_spend).unwrap();
+    let (P_n_xonly, _) = P_n.x_only_public_key();
 
     let mut wallet: Vec<WalletItem> = vec![];
     for output in outputs_to_check {
-        if P_n.eq(&output) {
-            let pub_key = hex::encode(P_n.serialize());
+        if P_n_xonly.eq(&output) {
+            let pub_key = hex::encode(P_n_xonly.serialize());
             let priv_key_tweak = hex::encode(t_n);
             wallet.push(WalletItem {
                 pub_key,
@@ -124,7 +125,7 @@ pub fn verify_and_calculate_signatures(
 
     let mut res: Vec<ReceivingDataOutputs> = vec![];
     for output in add_to_wallet {
-        let pubkey = PublicKey::from_str(&output.pub_key).unwrap();
+        let pubkey = XOnlyPublicKey::from_str(&output.pub_key).unwrap();
         let tweak = hex::decode(&output.priv_key_tweak).unwrap();
         let scalar = Scalar::from_be_bytes(tweak.try_into().unwrap()).unwrap();
         let mut full_priv_key = b_spend.add_tweak(&scalar).unwrap();
@@ -137,20 +138,13 @@ pub fn verify_and_calculate_signatures(
 
         let sig = secp.sign_schnorr_with_aux_rand(&msg, &full_priv_key.keypair(&secp), &aux);
 
-        eprintln!("sig = {:?}", sig);
-
-        let (x_only_public_key, _) = pubkey.x_only_public_key();
-        secp.verify_schnorr(&sig, &msg, &x_only_public_key)?;
+        secp.verify_schnorr(&sig, &msg, &pubkey)?;
 
         res.push(ReceivingDataOutputs {
-            pub_key: output.pub_key[2..].to_string(),
+            pub_key: output.pub_key.to_string(),
             priv_key_tweak: output.priv_key_tweak.clone(),
             signature: sig.to_string(),
         });
     }
     Ok(res)
-}
-
-fn check_expected_outputs(add_to_wallet: Vec<WalletItem>, outputs: &Vec<ReceivingDataOutputs>) {
-    for item in add_to_wallet {}
 }

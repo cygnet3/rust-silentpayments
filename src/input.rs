@@ -21,7 +21,7 @@ pub struct ReceivingDataGiven {
     pub outpoints: Vec<(String, u32)>,
     pub input_pub_keys: Vec<String>,
     pub bip32_seed: String,
-    // #[serde(deserialize_with = "empty_array_as_map")]
+    #[serde(deserialize_with = "empty_array_as_map")]
     pub labels: HashMap<String, u32>,
     pub outputs: Vec<String>,
 }

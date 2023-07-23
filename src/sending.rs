@@ -91,16 +91,13 @@ pub fn create_outputs(given: &SendingDataGiven) -> Vec<HashMap<String, f32>> {
                 .mul_tweak(&secp, &Scalar::from_be_bytes(t_n).unwrap())
                 .unwrap();
             let reskey = res.combine(&B_m).unwrap();
-
-            let mut resstr: String = reskey.to_string();
-            resstr.drain(..2);
+            let (reskey_xonly, _) = reskey.x_only_public_key();
 
             let mut toAdd: HashMap<String, f32> = HashMap::new();
 
-            toAdd.insert(resstr, amount);
+            toAdd.insert(reskey_xonly.to_string(), amount);
 
             result.push(toAdd);
-
             n += 1;
         }
         // n += 1;

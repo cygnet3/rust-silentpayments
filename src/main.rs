@@ -5,7 +5,8 @@ mod sending;
 
 use hex::FromHex;
 use secp256k1::{
-    hashes::{sha256, Hash}, PublicKey,
+    hashes::{sha256, Hash},
+    XOnlyPublicKey,
 };
 use std::str::FromStr;
 use std::{collections::HashSet, io::Write};
@@ -51,49 +52,6 @@ fn hash_outpoints(sending_data: &Vec<(String, u32)>) -> [u8; 32] {
 fn main() {
     let testdata = input::read_file();
 
-    let receiving = &testdata[0].receiving[0];
-    let given = &receiving.given;
-    let expected = &receiving.expected;
-
-    let bip32_seed_str = &given.bip32_seed;
-    let bip32_seed = hex::decode(&bip32_seed_str[2..]).unwrap();
-
-    let (b_scan, b_spend, B_scan, B_spend) = derive_silent_payment_key_pair(bip32_seed);
-
-    let mut receiving_addresses: Vec<String> = vec![];
-    receiving_addresses.push(encode_silent_payment_address(B_scan, B_spend, None, None));
-    eprintln!("receiving_addresses = {:?}", receiving_addresses);
-
-    // todo labels
-
-    let outputs_to_check: Vec<PublicKey> = given
-        .outputs
-        .iter()
-        .map(|x| PublicKey::from_str(format!("03{}", &x).as_str()).unwrap())
-        .collect();
-
-    let outpoints_hash = hash_outpoints(&given.outpoints);
-    let A_sum = get_A_sum_public_keys(&given.input_pub_keys);
-    let labels = &given.labels;
-
-    let mut add_to_wallet = scanning(
-        b_scan,
-        B_spend,
-        A_sum,
-        outpoints_hash,
-        outputs_to_check,
-        labels,
-    );
-
-    let res = verify_and_calculate_signatures(&mut add_to_wallet, b_spend).unwrap();
-    if res.eq(&expected.outputs) {
-        println!("succeeded");
-    } else {
-        println!("failed");
-    }
-
-    // todo: check that sending outputs are equal to sending test
-
     for test in testdata {
         eprintln!("test.comment = {:?}", test.comment);
         for sendingtest in test.sending {
@@ -108,10 +66,53 @@ fn main() {
                 outputs.into_iter().map(|x| x.into()).collect();
 
             if outputs_comparable == expected_comparable {
-                println!("succeeded");
+                println!("sending succeeded");
             } else {
-                eprintln!("expected = {:#?}", expected_comparable);
-                eprintln!("outputs = {:#?}", outputs_comparable);
+                eprintln!("sending expected = {:#?}", expected_comparable);
+                eprintln!("sending outputs = {:#?}", outputs_comparable);
+            }
+        }
+
+        // todo: check that sending outputs are equal to sending test
+
+        for receivingtest in test.receiving {
+            let given = &receivingtest.given;
+            let expected = &receivingtest.expected;
+
+            let bip32_seed_str = &given.bip32_seed;
+            let bip32_seed = hex::decode(&bip32_seed_str[2..]).unwrap();
+
+            let (b_scan, b_spend, B_scan, B_spend) = derive_silent_payment_key_pair(bip32_seed);
+
+            let mut receiving_addresses: Vec<String> = vec![];
+            receiving_addresses.push(encode_silent_payment_address(B_scan, B_spend, None, None));
+
+            // todo labels
+
+            let outputs_to_check: Vec<XOnlyPublicKey> = given
+                .outputs
+                .iter()
+                .map(|x| XOnlyPublicKey::from_str(x).unwrap())
+                .collect();
+
+            let outpoints_hash = hash_outpoints(&given.outpoints);
+            let A_sum = get_A_sum_public_keys(&given.input_pub_keys);
+            let labels = &given.labels;
+
+            let mut add_to_wallet = scanning(
+                b_scan,
+                B_spend,
+                A_sum,
+                outpoints_hash,
+                outputs_to_check,
+                labels,
+            );
+
+            let res = verify_and_calculate_signatures(&mut add_to_wallet, b_spend).unwrap();
+            if res.eq(&expected.outputs) {
+                println!("receiving succeeded");
+            } else {
+                println!("receiving failed");
             }
         }
     }
