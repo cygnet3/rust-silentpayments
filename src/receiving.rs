@@ -66,6 +66,38 @@ pub fn encode_silent_payment_address(
     bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
 }
 
+fn calculate_P_n(B_spend: &PublicKey, t_n: [u8; 32] ) -> XOnlyPublicKey {
+    let secp = Secp256k1::new();
+
+    let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())
+        .unwrap()
+        .public_key(&secp);
+    let intermediate = G
+        .mul_tweak(&secp, &Scalar::from_be_bytes(t_n).unwrap())
+        .unwrap();
+    let P_n = intermediate.combine(&B_spend).unwrap();
+    let (P_n_xonly, _) = P_n.x_only_public_key();
+
+    P_n_xonly
+}
+
+fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> [u8; 32] {
+    let mut bytes: Vec<u8> = Vec::new();
+    bytes.extend_from_slice(ecdh_shared_secret);
+    bytes.extend_from_slice(&ser_uint32(n));
+    sha256(&bytes)
+}
+
+fn calculate_ecdh_secret(A_sum: &PublicKey, b_scan: SecretKey, outpoints_hash: [u8; 32]) -> [u8; 33] {
+    let secp = Secp256k1::new();
+
+    let intermediate = A_sum.mul_tweak(&secp, &b_scan.into()).unwrap();
+    let scalar = Scalar::from_be_bytes(outpoints_hash).unwrap();
+    let ecdh_shared_secret = intermediate.mul_tweak(&secp, &scalar).unwrap().serialize();
+
+    ecdh_shared_secret
+}
+
 #[derive(Debug)]
 pub struct WalletItem {
     pub pub_key: String,
@@ -77,29 +109,13 @@ pub fn scanning(
     B_spend: PublicKey,
     A_sum: PublicKey,
     outpoints_hash: [u8; 32],
-    outputs_to_check: Vec<XOnlyPublicKey>,
+    outputs_to_check: &mut Vec<XOnlyPublicKey>,
     _labels: &HashMap<String, u32>,
 ) -> Vec<WalletItem> {
-    let secp = Secp256k1::new();
-
-    let intermediate = A_sum.mul_tweak(&secp, &b_scan.into()).unwrap();
-    let scalar = Scalar::from_be_bytes(outpoints_hash).unwrap();
-    let ecdh_shared_secret = intermediate.mul_tweak(&secp, &scalar).unwrap().serialize();
-
+    let ecdh_shared_secret =  calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash);
     let n = 0;
-    let mut bytes: Vec<u8> = Vec::new();
-    bytes.extend_from_slice(&ecdh_shared_secret);
-    bytes.extend_from_slice(&ser_uint32(n));
-    let t_n = sha256(&bytes);
-
-    let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())
-        .unwrap()
-        .public_key(&secp);
-    let intermediate = G
-        .mul_tweak(&secp, &Scalar::from_be_bytes(t_n).unwrap())
-        .unwrap();
-    let P_n = intermediate.combine(&B_spend).unwrap();
-    let (P_n_xonly, _) = P_n.x_only_public_key();
+    let t_n = calculate_t_n(&ecdh_shared_secret, n);
+    let P_n_xonly = calculate_P_n(&B_spend, t_n);
 
     let mut wallet: Vec<WalletItem> = vec![];
     for output in outputs_to_check {

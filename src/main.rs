@@ -89,7 +89,7 @@ fn main() {
 
             // todo labels
 
-            let outputs_to_check: Vec<XOnlyPublicKey> = given
+            let mut outputs_to_check: Vec<XOnlyPublicKey> = given
                 .outputs
                 .iter()
                 .map(|x| XOnlyPublicKey::from_str(x).unwrap())
@@ -104,7 +104,7 @@ fn main() {
                 B_spend,
                 A_sum,
                 outpoints_hash,
-                outputs_to_check,
+                &mut outputs_to_check,
                 labels,
             );
 
