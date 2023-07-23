@@ -9,3 +9,5 @@ However, for ease of reading the data, some slight changes have been made to the
 
 - Empty labels are given as an empty map `{}` rather than an empty list `[]`
 - The label integer `m` is given in 32-byte big-endian hex format
+
+You can test the code using the test vectors by running `cargo test` 
