@@ -4,9 +4,8 @@ use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey};
 use std::{collections::HashMap, str::FromStr};
 
 use crate::{
-    hash_outpoints,
     input::SendingDataGiven,
-    utils::{ser_uint32, sha256},
+    utils::{ser_uint32, sha256, hash_outpoints},
 };
 
 fn get_a_sum_secret_keys(input: &Vec<(String, bool)>) -> SecretKey {

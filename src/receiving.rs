@@ -3,7 +3,7 @@ use bech32::ToBase32;
 use secp256k1::{hashes::Hash, Message, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::{collections::HashMap, str::FromStr};
 
-use crate::{input::ReceivingDataOutputs, sha256, utils::ser_uint32};
+use crate::{input::ReceivingDataOutputs, utils::ser_uint32};
 
 pub fn get_receiving_addresses(
     B_scan: PublicKey,
@@ -230,8 +230,8 @@ pub fn verify_and_calculate_signatures(
     b_spend: SecretKey,
 ) -> Result<Vec<ReceivingDataOutputs>, secp256k1::Error> {
     let secp = secp256k1::Secp256k1::new();
-    let msg = Message::from_hashed_data::<sha256::Hash>(b"message");
-    let aux = sha256::Hash::hash(b"random auxiliary data").to_byte_array();
+    let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"message");
+    let aux = secp256k1::hashes::sha256::Hash::hash(b"random auxiliary data").to_byte_array();
 
     let mut res: Vec<ReceivingDataOutputs> = vec![];
     for output in add_to_wallet {
