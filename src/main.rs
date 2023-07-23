@@ -73,23 +73,30 @@ fn main() {
             }
         }
 
-        // todo: check that sending outputs are equal to sending test
+        // todo: check that sending outputs are equal to receiving test
 
         for receivingtest in test.receiving {
             let given = &receivingtest.given;
             let expected = &receivingtest.expected;
 
             let bip32_seed_str = &given.bip32_seed;
-            let bip32_seed = hex::decode(&bip32_seed_str[2..]).unwrap();
 
-            let (b_scan, b_spend, B_scan, B_spend) = derive_silent_payment_key_pair(bip32_seed);
+            // todo fix seed?
+            // let bip32_seed = hex::decode(&bip32_seed_str[2..]).unwrap();
+            let (b_scan, b_spend, B_scan, B_spend) = derive_silent_payment_key_pair(bip32_seed_str);
 
             let mut receiving_addresses: Vec<String> = vec![];
             receiving_addresses.push(encode_silent_payment_address(B_scan, B_spend, None, None));
 
-            // todo labels
+            // todo label support
+            if !receiving_addresses.eq(&expected.addresses) {
+                println!("receiving addressess failed");
+                eprintln!("receiving_addresses = {:#?}", receiving_addresses);
+                eprintln!("expected.addresses = {:#?}", expected.addresses);
+                std::process::exit(0);
+            }
 
-            let mut outputs_to_check: Vec<XOnlyPublicKey> = given
+            let outputs_to_check: Vec<XOnlyPublicKey> = given
                 .outputs
                 .iter()
                 .map(|x| XOnlyPublicKey::from_str(x).unwrap())
@@ -104,7 +111,7 @@ fn main() {
                 B_spend,
                 A_sum,
                 outpoints_hash,
-                &mut outputs_to_check,
+                outputs_to_check,
                 labels,
             );
 
@@ -112,7 +119,10 @@ fn main() {
             if res.eq(&expected.outputs) {
                 println!("receiving succeeded");
             } else {
+                eprintln!("res = {:#?}", res);
+                eprintln!("expected.outputs = {:#?}", expected.outputs);
                 println!("receiving failed");
+                std::process::exit(0);
             }
         }
     }

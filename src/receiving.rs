@@ -6,11 +6,12 @@ use std::{collections::HashMap, str::FromStr};
 use crate::{input::ReceivingDataOutputs, ser_uint32, sha256};
 
 pub fn derive_silent_payment_key_pair(
-    _bytes: Vec<u8>,
+    bytes: &str,
+    // _bytes: Vec<u8>,
 ) -> (SecretKey, SecretKey, PublicKey, PublicKey) {
     let secp = Secp256k1::new();
 
-    // find fix
+    // find fix for 1 byte array
     // let SPEND_KEY="m/352h/0h/0h/0h/0";
     // let SCAN_KEY="m/352h/0h/0h/1h/0";
     // let root_xpriv: ExtendedPrivateKey<SigningKey> = ExtendedPrivateKey::from_str("xprv9s21ZrQH143K4NfrUWWsMyZZichaQ6rEYoi9wFLSeiMJhnPCNQWmzbxdcacoxK7CUmvuCJWVKjNq26HcXTdUr3sMoDnMhU4e1i24sp8ZmmA").unwrap();
@@ -19,12 +20,24 @@ pub fn derive_silent_payment_key_pair(
     // let scan_xpriv_priv = hex::encode(scan_xpriv.private_key().to_bytes());
     // let scan_xpriv_pub = hex::encode(scan_xpriv.public_key().to_bytes());
 
-    let b_scan =
-        SecretKey::from_str("a6dba5c9af3ee645c2287c6b1d558d3ea968502ef5343398f48715e624ddd183")
-            .unwrap();
-    let b_spend =
-        SecretKey::from_str("d96b8703387c5ffec5d256f80d4dc9f39152b2150fd05e469b011215251aa259")
-            .unwrap();
+    let (b_scan_str, b_spend_str) = match bytes {
+        "0x01" => (
+            "a6dba5c9af3ee645c2287c6b1d558d3ea968502ef5343398f48715e624ddd183",
+            "d96b8703387c5ffec5d256f80d4dc9f39152b2150fd05e469b011215251aa259",
+        ),
+        "0x00" => (
+            "59984d7f53ff7e0ee345c6e9f5d5e47ae957abf3b55f2272152561db7e700255",
+            "d41394c1c9dc1745c50028dc550765dfad87e50b3fdfb15a3e4290ec59ce34c6",
+        ),
+        "0x02" => (
+            "34c45d7dc16b07aba41463fd5437fad2dd05e3da8afd1805ae13062882d4f7c4",
+            "944d675e840f52af695d1415564912173b7a4ca740dc946875f9f64b97f8090c",
+        ),
+        _ => ("", ""),
+    };
+
+    let b_scan = SecretKey::from_str(b_scan_str).unwrap();
+    let b_spend = SecretKey::from_str(b_spend_str).unwrap();
 
     let B_scan = b_scan.public_key(&secp);
     let B_spend = b_spend.public_key(&secp);
@@ -37,6 +50,7 @@ pub fn get_A_sum_public_keys(input: &Vec<String>) -> PublicKey {
         .map(|x| match PublicKey::from_str(&x) {
             Ok(key) => key,
             Err(_) => {
+                println!("using x only public key with even pairing");
                 let x_only_public_key = XOnlyPublicKey::from_str(&x).unwrap();
                 PublicKey::from_x_only_public_key(x_only_public_key, secp256k1::Parity::Even)
             }
@@ -66,7 +80,7 @@ pub fn encode_silent_payment_address(
     bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
 }
 
-fn calculate_P_n(B_spend: &PublicKey, t_n: [u8; 32] ) -> XOnlyPublicKey {
+fn calculate_P_n(B_spend: &PublicKey, t_n: [u8; 32]) -> XOnlyPublicKey {
     let secp = Secp256k1::new();
 
     let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())
@@ -88,7 +102,11 @@ fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> [u8; 32] {
     sha256(&bytes)
 }
 
-fn calculate_ecdh_secret(A_sum: &PublicKey, b_scan: SecretKey, outpoints_hash: [u8; 32]) -> [u8; 33] {
+fn calculate_ecdh_secret(
+    A_sum: &PublicKey,
+    b_scan: SecretKey,
+    outpoints_hash: [u8; 32],
+) -> [u8; 33] {
     let secp = Secp256k1::new();
 
     let intermediate = A_sum.mul_tweak(&secp, &b_scan.into()).unwrap();
@@ -109,23 +127,27 @@ pub fn scanning(
     B_spend: PublicKey,
     A_sum: PublicKey,
     outpoints_hash: [u8; 32],
-    outputs_to_check: &mut Vec<XOnlyPublicKey>,
+    outputs_to_check: Vec<XOnlyPublicKey>,
     _labels: &HashMap<String, u32>,
 ) -> Vec<WalletItem> {
-    let ecdh_shared_secret =  calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash);
-    let n = 0;
-    let t_n = calculate_t_n(&ecdh_shared_secret, n);
-    let P_n_xonly = calculate_P_n(&B_spend, t_n);
-
+    let ecdh_shared_secret = calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash);
+    let mut n = 0;
     let mut wallet: Vec<WalletItem> = vec![];
-    for output in outputs_to_check {
-        if P_n_xonly.eq(&output) {
+
+    loop {
+        let t_n = calculate_t_n(&ecdh_shared_secret, n);
+        let P_n_xonly = calculate_P_n(&B_spend, t_n);
+        if outputs_to_check.iter().any(|&output| P_n_xonly.eq(&output)) {
             let pub_key = hex::encode(P_n_xonly.serialize());
             let priv_key_tweak = hex::encode(t_n);
             wallet.push(WalletItem {
                 pub_key,
                 priv_key_tweak,
             });
+
+            n += 1;
+        } else {
+            break;
         }
     }
     wallet
