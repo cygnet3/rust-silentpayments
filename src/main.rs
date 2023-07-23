@@ -2,53 +2,21 @@
 mod input;
 mod receiving;
 mod sending;
+mod utils;
 
-use hex::FromHex;
-use secp256k1::{
-    hashes::{sha256, Hash},
-    XOnlyPublicKey,
-};
+use secp256k1::{hashes::sha256, XOnlyPublicKey};
+use std::collections::HashSet;
 use std::str::FromStr;
-use std::{collections::HashSet, io::Write};
 
 use crate::{
     input::ComparableHashMap,
     receiving::{
-        create_labeled_silent_payment_address, derive_silent_payment_key_pair,
-        encode_silent_payment_address, get_A_sum_public_keys, scanning,
+        derive_silent_payment_key_pair, get_A_sum_public_keys, get_receiving_addresses, scanning,
         verify_and_calculate_signatures,
     },
     sending::create_outputs,
+    utils::hash_outpoints,
 };
-
-fn sha256(message: &[u8]) -> [u8; 32] {
-    sha256::Hash::hash(message).to_byte_array()
-}
-
-fn ser_uint32(u: u32) -> Vec<u8> {
-    u.to_be_bytes().into()
-}
-
-fn hash_outpoints(sending_data: &Vec<(String, u32)>) -> [u8; 32] {
-    let mut outpoints: Vec<Vec<u8>> = vec![];
-
-    for (txid_str, vout) in sending_data {
-        let mut txid = Vec::from_hex(txid_str).unwrap();
-        txid.reverse();
-        let mut vout_bytes = vout.to_le_bytes().to_vec();
-        txid.append(&mut vout_bytes);
-        outpoints.push(txid);
-    }
-    outpoints.sort();
-
-    let mut engine = sha256::HashEngine::default();
-
-    for v in outpoints {
-        engine.write_all(&v).unwrap();
-    }
-
-    sha256::Hash::from_engine(engine).to_byte_array()
-}
 
 fn main() {
     let testdata = input::read_file();
@@ -94,20 +62,12 @@ fn main() {
                 std::process::exit(0);
             }
 
-            let bip32_seed_str = &given.bip32_seed;
-
             // todo fix seed?
             // let bip32_seed = hex::decode(&bip32_seed_str[2..]).unwrap();
+            let bip32_seed_str = &given.bip32_seed;
             let (b_scan, b_spend, B_scan, B_spend) = derive_silent_payment_key_pair(bip32_seed_str);
 
-            let mut receiving_addresses: Vec<String> = vec![];
-            receiving_addresses.push(encode_silent_payment_address(B_scan, B_spend, None, None));
-
-            for (_, label) in &given.labels {
-                receiving_addresses.push(create_labeled_silent_payment_address(
-                    B_scan, B_spend, label, None, None,
-                ));
-            }
+            let receiving_addresses = get_receiving_addresses(B_scan, B_spend, &given.labels);
 
             let set1: HashSet<_> = receiving_addresses.iter().collect();
             let set2: HashSet<_> = expected.addresses.iter().collect();
