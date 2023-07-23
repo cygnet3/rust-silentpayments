@@ -1,30 +1,30 @@
 #![allow(non_snake_case, dead_code)]
 mod input;
-mod receiving;
 mod sending;
+mod receiving;
 mod utils;
 
-use secp256k1::{hashes::sha256, XOnlyPublicKey};
-use std::collections::HashSet;
-use std::str::FromStr;
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashSet, str::FromStr};
 
-use crate::{
-    input::ComparableHashMap,
-    receiving::{
-        derive_silent_payment_key_pair, get_A_sum_public_keys, get_receiving_addresses, scanning,
-        verify_and_calculate_signatures,
-    },
-    sending::create_outputs,
-    utils::hash_outpoints,
-};
+    use secp256k1::XOnlyPublicKey;
 
-fn main() {
-    let testdata = input::read_file();
+    use crate::{input::{self, ComparableHashMap, TestData}, sending::create_outputs, receiving::{derive_silent_payment_key_pair, get_receiving_addresses, get_A_sum_public_keys, scanning, verify_and_calculate_signatures}, utils::hash_outpoints};
 
-    for test in testdata {
+    #[test]
+    fn test_with_test_vectors() {
+        let testdata = input::read_file();
+
+        for test in testdata {
+            process_test_case(test);
+        }
+    }
+
+    fn process_test_case(test_case: TestData) {
         let mut sending_outputs: HashSet<String> = HashSet::new();
-        eprintln!("test.comment = {:?}", test.comment);
-        for sendingtest in test.sending {
+        eprintln!("test.comment = {:?}", test_case.comment);
+        for sendingtest in test_case.sending {
             let given = sendingtest.given;
 
             let expected = sendingtest.expected;
@@ -42,28 +42,20 @@ fn main() {
             let outputs_comparable: HashSet<ComparableHashMap> =
                 outputs.into_iter().map(|x| x.into()).collect();
 
-            if outputs_comparable == expected_comparable {
-                println!("sending succeeded");
-            } else {
-                eprintln!("sending expected = {:#?}", expected_comparable);
-                eprintln!("sending outputs = {:#?}", outputs_comparable);
-                std::process::exit(0);
-            }
+            assert_eq!(outputs_comparable, expected_comparable);
         }
 
-        for receivingtest in test.receiving {
+        for receivingtest in &test_case.receiving {
             let given = &receivingtest.given;
             let expected = &receivingtest.expected;
 
             let receiving_outputs: HashSet<String> = given.outputs.iter().cloned().collect();
-            if !sending_outputs.is_subset(&receiving_outputs) {
-                eprintln!("receivingOutputs = {:#?}", receiving_outputs);
-                eprintln!("sending_outputs = {:#?}", sending_outputs);
-                std::process::exit(0);
-            }
+
+            // assert that the sending outputs generated are equal
+            // to the expected receiving outputs
+            assert!(sending_outputs.is_subset(&receiving_outputs));
 
             // todo fix seed?
-            // let bip32_seed = hex::decode(&bip32_seed_str[2..]).unwrap();
             let bip32_seed_str = &given.bip32_seed;
             let (b_scan, b_spend, B_scan, B_spend) = derive_silent_payment_key_pair(bip32_seed_str);
 
@@ -71,12 +63,8 @@ fn main() {
 
             let set1: HashSet<_> = receiving_addresses.iter().collect();
             let set2: HashSet<_> = expected.addresses.iter().collect();
-            if !set1.eq(&set2) {
-                println!("receiving addressess failed");
-                eprintln!("receiving_addresses = {:#?}", receiving_addresses);
-                eprintln!("expected.addresses = {:#?}", expected.addresses);
-                std::process::exit(0);
-            }
+
+            assert_eq!(set1, set2);
 
             // can be even or odd !
             let outputs_to_check: Vec<XOnlyPublicKey> = given
@@ -102,14 +90,8 @@ fn main() {
             );
 
             let res = verify_and_calculate_signatures(&mut add_to_wallet, b_spend).unwrap();
-            if res.eq(&expected.outputs) {
-                println!("receiving succeeded");
-            } else {
-                eprintln!("res = {:#?}", res);
-                eprintln!("expected.outputs = {:#?}", expected.outputs);
-                println!("receiving failed");
-                std::process::exit(0);
-            }
+            assert_eq!(res, expected.outputs);
         }
+
     }
 }
