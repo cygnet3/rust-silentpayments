@@ -54,6 +54,7 @@ fn main() {
     let testdata = input::read_file();
 
     for test in testdata {
+        let mut sending_outputs: HashSet<String> = HashSet::new();
         eprintln!("test.comment = {:?}", test.comment);
         for sendingtest in test.sending {
             let given = sendingtest.given;
@@ -63,6 +64,13 @@ fn main() {
                 expected.outputs.into_iter().map(|x| x.into()).collect();
 
             let outputs = create_outputs(&given);
+
+            for map in &outputs {
+                for key in map.keys() {
+                    sending_outputs.insert(key.clone());
+                }
+            }
+
             let outputs_comparable: HashSet<ComparableHashMap> =
                 outputs.into_iter().map(|x| x.into()).collect();
 
@@ -75,11 +83,16 @@ fn main() {
             }
         }
 
-        // todo: check that sending outputs are equal to receiving test
-
         for receivingtest in test.receiving {
             let given = &receivingtest.given;
             let expected = &receivingtest.expected;
+
+            let receiving_outputs: HashSet<String> = given.outputs.iter().cloned().collect();
+            if !sending_outputs.is_subset(&receiving_outputs) {
+                eprintln!("receivingOutputs = {:#?}", receiving_outputs);
+                eprintln!("sending_outputs = {:#?}", sending_outputs);
+                std::process::exit(0);
+            }
 
             let bip32_seed_str = &given.bip32_seed;
 
