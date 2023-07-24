@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 use serde::Deserialize;
-use serde_json::from_str;
 use silentpayments::structs::OutputWithSignature;
 
 use std::hash::{Hash, Hasher};
@@ -92,7 +91,6 @@ impl Hash for ComparableHashMap {
         }
     }
 }
-
 pub fn read_file() -> Vec<TestData> {
     let mut file = File::open("tests/resources/send_and_receive_test_vectors.json").unwrap();
     let mut contents = String::new();
