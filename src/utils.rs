@@ -1,6 +1,5 @@
 use std::io::Write;
 
-use hex::FromHex;
 use secp256k1::hashes::{sha256, Hash};
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -13,15 +12,15 @@ pub fn ser_uint32(u: u32) -> Vec<u8> {
     u.to_be_bytes().into()
 }
 
-pub fn hash_outpoints(sending_data: &Vec<(String, u32)>) -> Result<[u8; 32]> {
+pub fn hash_outpoints(sending_data: &Vec<([u8; 32], u32)>) -> Result<[u8; 32]> {
     let mut outpoints: Vec<Vec<u8>> = vec![];
 
-    for (txid_str, vout) in sending_data {
-        let mut txid = Vec::from_hex(txid_str)?;
-        txid.reverse();
-        let mut vout_bytes = vout.to_le_bytes().to_vec();
-        txid.append(&mut vout_bytes);
-        outpoints.push(txid);
+    for (txid, vout) in sending_data {
+        let mut bytes: Vec<u8> = Vec::new();
+        bytes.extend_from_slice(txid);
+        bytes.reverse();
+        bytes.extend_from_slice(&vout.to_le_bytes());
+        outpoints.push(bytes);
     }
     outpoints.sort();
 

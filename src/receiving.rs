@@ -5,7 +5,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use crate::{
     structs::{OutputWithSignature, ScannedOutput},
-    utils::{ser_uint32, Result},
+    utils::{ser_uint32, Result, hash_outpoints},
 };
 
 pub fn get_receiving_addresses(
@@ -104,11 +104,14 @@ pub fn scanning(
     b_scan: SecretKey,
     B_spend: PublicKey,
     A_sum: PublicKey,
-    outpoints_hash: [u8; 32],
+    outpoints: Vec<([u8; 32], u32)>,
     outputs_to_check: Vec<XOnlyPublicKey>,
     labels: Option<&HashMap<String, String>>,
 ) -> Result<Vec<ScannedOutput>> {
     let secp = secp256k1::Secp256k1::new();
+
+    let outpoints_hash = hash_outpoints(&outpoints)?;
+
     let ecdh_shared_secret = calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash)?;
     let mut n = 0;
     let mut wallet: Vec<ScannedOutput> = vec![];

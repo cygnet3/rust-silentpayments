@@ -5,45 +5,8 @@ use std::collections::HashMap;
 
 use crate::utils::{hash_outpoints, ser_uint32, sha256, Result};
 
-fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> Result<SecretKey> {
-    let secp = Secp256k1::new();
-
-    let mut negated_keys: Vec<SecretKey> = vec![];
-
-    for (key, x_only) in input {
-        let (_, parity) = key.x_only_public_key(&secp);
-
-        if *x_only && parity == Parity::Odd {
-            negated_keys.push(key.negate());
-        } else {
-            negated_keys.push(*key);
-        }
-    }
-
-    let (head, tail) = negated_keys.split_first().ok_or("Empty input list")?;
-
-    let result: Result<SecretKey> = tail
-        .iter()
-        .fold(Ok(*head), |acc: Result<SecretKey>, &item| {
-            Ok(acc?.add_tweak(&item.into())?)
-        });
-
-    result
-}
-
-fn decode_silent_payment_address(addr: &str) -> Result<(PublicKey, PublicKey)> {
-    let (_hrp, data, _variant) = bech32::decode(&addr)?;
-
-    let data = Vec::<u8>::from_base32(&data[1..])?;
-
-    let B_scan = PublicKey::from_slice(&data[..33])?;
-    let B_spend = PublicKey::from_slice(&data[33..])?;
-
-    Ok((B_scan, B_spend))
-}
-
 pub fn create_outputs(
-    outpoints: &Vec<(String, u32)>,
+    outpoints: &Vec<([u8; 32], u32)>,
     input_priv_keys: &Vec<(SecretKey, bool)>,
     recipients: &Vec<(String, f32)>,
 ) -> Result<Vec<HashMap<String, f32>>> {
@@ -94,4 +57,41 @@ pub fn create_outputs(
         }
     }
     Ok(result)
+}
+
+fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> Result<SecretKey> {
+    let secp = Secp256k1::new();
+
+    let mut negated_keys: Vec<SecretKey> = vec![];
+
+    for (key, is_taproot) in input {
+        let (_, parity) = key.x_only_public_key(&secp);
+
+        if *is_taproot && parity == Parity::Odd {
+            negated_keys.push(key.negate());
+        } else {
+            negated_keys.push(*key);
+        }
+    }
+
+    let (head, tail) = negated_keys.split_first().ok_or("Empty input list")?;
+
+    let result: Result<SecretKey> = tail
+        .iter()
+        .fold(Ok(*head), |acc: Result<SecretKey>, &item| {
+            Ok(acc?.add_tweak(&item.into())?)
+        });
+
+    result
+}
+
+fn decode_silent_payment_address(addr: &str) -> Result<(PublicKey, PublicKey)> {
+    let (_hrp, data, _variant) = bech32::decode(&addr)?;
+
+    let data = Vec::<u8>::from_base32(&data.get(1..).ok_or("Unexpected data size")?)?;
+
+    let B_scan = PublicKey::from_slice(&data.get(..33).ok_or("Unexpected data size")?)?;
+    let B_spend = PublicKey::from_slice(&data.get(33..).ok_or("Unexpected data size")?)?;
+
+    Ok((B_scan, B_spend))
 }
