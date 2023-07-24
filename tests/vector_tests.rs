@@ -9,7 +9,7 @@ use silentpayments::utils;
 mod tests {
     use std::{collections::HashSet, str::FromStr};
 
-    use secp256k1::XOnlyPublicKey;
+    use secp256k1::{SecretKey, XOnlyPublicKey};
 
     use crate::{
         common::input::{self, get_testing_silent_payment_key_pair, ComparableHashMap, TestData},
@@ -40,8 +40,14 @@ mod tests {
             let expected_comparable: HashSet<ComparableHashMap> =
                 expected.outputs.into_iter().map(|x| x.into()).collect();
 
+            let input_priv_keys: Vec<(SecretKey, bool)> = given
+                .input_priv_keys
+                .iter()
+                .map(|(keystr, x_only)| (SecretKey::from_str(&keystr).unwrap(), *x_only))
+                .collect();
+
             let outputs =
-                create_outputs(&given.outpoints, &given.input_priv_keys, &given.recipients);
+                create_outputs(&given.outpoints, &input_priv_keys, &given.recipients).unwrap();
 
             for map in &outputs {
                 for key in map.keys() {
