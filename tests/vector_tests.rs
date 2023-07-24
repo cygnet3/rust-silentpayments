@@ -9,7 +9,7 @@ use silentpayments::utils;
 mod tests {
     use std::{collections::HashSet, str::FromStr};
 
-    use secp256k1::XOnlyPublicKey;
+    use secp256k1::{PublicKey, SecretKey, XOnlyPublicKey};
 
     use crate::{
         common::input::{self, get_testing_silent_payment_key_pair, ComparableHashMap, TestData},
@@ -40,8 +40,14 @@ mod tests {
             let expected_comparable: HashSet<ComparableHashMap> =
                 expected.outputs.into_iter().map(|x| x.into()).collect();
 
+            let input_priv_keys: Vec<(SecretKey, bool)> = given
+                .input_priv_keys
+                .iter()
+                .map(|(keystr, x_only)| (SecretKey::from_str(&keystr).unwrap(), *x_only))
+                .collect();
+
             let outputs =
-                create_outputs(&given.outpoints, &given.input_priv_keys, &given.recipients);
+                create_outputs(&given.outpoints, &input_priv_keys, &given.recipients).unwrap();
 
             for map in &outputs {
                 for key in map.keys() {
@@ -68,7 +74,8 @@ mod tests {
             let (b_scan, b_spend, B_scan, B_spend) =
                 get_testing_silent_payment_key_pair(&given.bip32_seed);
 
-            let receiving_addresses = get_receiving_addresses(B_scan, B_spend, &given.labels);
+            let receiving_addresses =
+                get_receiving_addresses(B_scan, B_spend, &given.labels).unwrap();
 
             let set1: HashSet<_> = receiving_addresses.iter().collect();
             let set2: HashSet<_> = expected.addresses.iter().collect();
@@ -82,8 +89,26 @@ mod tests {
                 .map(|x| XOnlyPublicKey::from_str(x).unwrap())
                 .collect();
 
-            let outpoints_hash = hash_outpoints(&given.outpoints);
-            let A_sum = get_A_sum_public_keys(&given.input_pub_keys);
+            let outpoints_hash = hash_outpoints(&given.outpoints).unwrap();
+
+            let input_pub_keys: Vec<PublicKey> = given
+                .input_pub_keys
+                .iter()
+                .map(|x| match PublicKey::from_str(&x) {
+                    Ok(key) => key,
+                    Err(_) => {
+                        // we always assume even pairing for input public keys if they are omitted
+                        let x_only_public_key = XOnlyPublicKey::from_str(&x).unwrap();
+                        PublicKey::from_x_only_public_key(
+                            x_only_public_key,
+                            secp256k1::Parity::Even,
+                        )
+                    }
+                })
+                .collect();
+
+            let A_sum = get_A_sum_public_keys(&input_pub_keys).unwrap();
+
             let labels = match &given.labels.len() {
                 0 => None,
                 _ => Some(&given.labels),
@@ -96,7 +121,8 @@ mod tests {
                 outpoints_hash,
                 outputs_to_check,
                 labels,
-            );
+            )
+            .unwrap();
 
             let res = verify_and_calculate_signatures(&mut add_to_wallet, b_spend).unwrap();
             assert_eq!(res, expected.outputs);
