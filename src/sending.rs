@@ -24,12 +24,11 @@ fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> Result<SecretKey> {
 
     let (head, tail) = negated_keys.split_first().ok_or("Empty input list")?;
 
-    let result: Result<SecretKey> = tail.iter().fold(
-        Ok(*head),
-        |acc: Result<SecretKey>, &item| {
+    let result: Result<SecretKey> = tail
+        .iter()
+        .fold(Ok(*head), |acc: Result<SecretKey>, &item| {
             Ok(acc?.add_tweak(&item.into())?)
-        },
-    );
+        });
 
     result
 }

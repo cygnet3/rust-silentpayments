@@ -8,37 +8,30 @@ use crate::{
     utils::ser_uint32,
 };
 
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
 pub fn get_receiving_addresses(
     B_scan: PublicKey,
     B_spend: PublicKey,
     labels: &HashMap<String, String>,
-) -> Vec<String> {
+) -> Result<Vec<String>> {
     let mut receiving_addresses: Vec<String> = vec![];
-    receiving_addresses.push(encode_silent_payment_address(B_scan, B_spend, None, None));
+    receiving_addresses.push(encode_silent_payment_address(B_scan, B_spend, None, None)?);
     for (_, label) in labels {
         receiving_addresses.push(create_labeled_silent_payment_address(
             B_scan, B_spend, label, None, None,
-        ));
+        )?);
     }
 
-    receiving_addresses
+    Ok(receiving_addresses)
 }
 
-pub fn get_A_sum_public_keys(input: &Vec<String>) -> PublicKey {
-    let keys: Vec<PublicKey> = input
-        .iter()
-        .map(|x| match PublicKey::from_str(&x) {
-            Ok(key) => key,
-            Err(_) => {
-                // we always assume even pairing for input public keys if they are omitted
-                let x_only_public_key = XOnlyPublicKey::from_str(&x).unwrap();
-                PublicKey::from_x_only_public_key(x_only_public_key, secp256k1::Parity::Even)
-            }
-        })
-        .collect();
-    let keys_refs: Vec<&PublicKey> = keys.iter().collect();
+pub fn get_A_sum_public_keys(
+    input: &Vec<PublicKey>,
+) -> std::result::Result<PublicKey, secp256k1::Error> {
+    let keys_refs: &Vec<&PublicKey> = &input.iter().collect();
 
-    PublicKey::combine_keys(&keys_refs).unwrap()
+    PublicKey::combine_keys(keys_refs)
 }
 
 fn encode_silent_payment_address(
@@ -46,9 +39,9 @@ fn encode_silent_payment_address(
     B_m: PublicKey,
     hrp: Option<&str>,
     version: Option<u8>,
-) -> String {
+) -> Result<String> {
     let hrp = hrp.unwrap_or("sp");
-    let version = bech32::u5::try_from_u8(version.unwrap_or(0)).unwrap();
+    let version = bech32::u5::try_from_u8(version.unwrap_or(0))?;
 
     let B_scan_bytes = B_scan.serialize();
     let B_m_bytes = B_m.serialize();
@@ -57,7 +50,7 @@ fn encode_silent_payment_address(
 
     data.insert(0, version);
 
-    bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
+    Ok(bech32::encode(hrp, data, bech32::Variant::Bech32m)?)
 }
 
 fn create_labeled_silent_payment_address(
@@ -66,32 +59,26 @@ fn create_labeled_silent_payment_address(
     m: &String,
     hrp: Option<&str>,
     version: Option<u8>,
-) -> String {
-    let bytes = hex::decode(m).unwrap().try_into().unwrap();
+) -> Result<String> {
+    let bytes: [u8; 32] = hex::decode(m)?.as_slice().try_into()?;
 
-    let scalar = Scalar::from_be_bytes(bytes).unwrap();
+    let scalar = Scalar::from_be_bytes(bytes)?;
     let secp = Secp256k1::new();
-    let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())
-        .unwrap()
-        .public_key(&secp);
-    let intermediate = G.mul_tweak(&secp, &scalar).unwrap();
-    let B_m = intermediate.combine(&B_spend).unwrap();
+    let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())?.public_key(&secp);
+    let intermediate = G.mul_tweak(&secp, &scalar)?;
+    let B_m = intermediate.combine(&B_spend)?;
 
     encode_silent_payment_address(B_scan, B_m, hrp, version)
 }
 
-fn calculate_P_n(B_spend: &PublicKey, t_n: [u8; 32]) -> PublicKey {
+fn calculate_P_n(B_spend: &PublicKey, t_n: [u8; 32]) -> Result<PublicKey> {
     let secp = Secp256k1::new();
 
-    let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())
-        .unwrap()
-        .public_key(&secp);
-    let intermediate = G
-        .mul_tweak(&secp, &Scalar::from_be_bytes(t_n).unwrap())
-        .unwrap();
-    let P_n = intermediate.combine(&B_spend).unwrap();
+    let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())?.public_key(&secp);
+    let intermediate = G.mul_tweak(&secp, &Scalar::from_be_bytes(t_n)?)?;
+    let P_n = intermediate.combine(&B_spend)?;
 
-    P_n
+    Ok(P_n)
 }
 
 fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> [u8; 32] {
@@ -105,14 +92,14 @@ fn calculate_ecdh_secret(
     A_sum: &PublicKey,
     b_scan: SecretKey,
     outpoints_hash: [u8; 32],
-) -> [u8; 33] {
+) -> Result<[u8; 33]> {
     let secp = Secp256k1::new();
 
-    let intermediate = A_sum.mul_tweak(&secp, &b_scan.into()).unwrap();
-    let scalar = Scalar::from_be_bytes(outpoints_hash).unwrap();
-    let ecdh_shared_secret = intermediate.mul_tweak(&secp, &scalar).unwrap().serialize();
+    let intermediate = A_sum.mul_tweak(&secp, &b_scan.into())?;
+    let scalar = Scalar::from_be_bytes(outpoints_hash)?;
+    let ecdh_shared_secret = intermediate.mul_tweak(&secp, &scalar)?.serialize();
 
-    ecdh_shared_secret
+    Ok(ecdh_shared_secret)
 }
 
 pub fn scanning(
@@ -122,9 +109,9 @@ pub fn scanning(
     outpoints_hash: [u8; 32],
     outputs_to_check: Vec<XOnlyPublicKey>,
     labels: Option<&HashMap<String, String>>,
-) -> Vec<ScannedOutput> {
+) -> Result<Vec<ScannedOutput>> {
     let secp = secp256k1::Secp256k1::new();
-    let ecdh_shared_secret = calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash);
+    let ecdh_shared_secret = calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash)?;
     let mut n = 0;
     let mut wallet: Vec<ScannedOutput> = vec![];
 
@@ -132,7 +119,7 @@ pub fn scanning(
     while found {
         found = false;
         let t_n = calculate_t_n(&ecdh_shared_secret, n);
-        let P_n = calculate_P_n(&B_spend, t_n);
+        let P_n = calculate_P_n(&B_spend, t_n)?;
         let (P_n_xonly, _) = P_n.x_only_public_key();
         if outputs_to_check.iter().any(|&output| output.eq(&P_n_xonly)) {
             let pub_key = hex::encode(P_n_xonly.serialize());
@@ -149,23 +136,19 @@ pub fn scanning(
                 let output_even = output.public_key(secp256k1::Parity::Even);
                 let output_odd = output.public_key(secp256k1::Parity::Odd);
 
-                let m_G_sub_even = output_even.combine(&P_n_negated).unwrap();
-                let m_G_sub_odd = output_odd.combine(&P_n_negated).unwrap();
+                let m_G_sub_even = output_even.combine(&P_n_negated)?;
+                let m_G_sub_odd = output_odd.combine(&P_n_negated)?;
                 let keys: Vec<PublicKey> = vec![m_G_sub_even, m_G_sub_odd];
                 for labelkeystr in labels.keys() {
-                    let labelkey = PublicKey::from_str(labelkeystr).unwrap();
+                    let labelkey = PublicKey::from_str(labelkeystr)?;
                     if keys.iter().any(|x| x.eq(&labelkey)) {
                         let P_nm = hex::encode(output.serialize());
                         let label = labels.get(labelkeystr).unwrap();
-                        let label_bytes = hex::decode(label).unwrap().try_into().unwrap();
-                        let label_scalar = Scalar::from_be_bytes(label_bytes).unwrap();
-                        let t_n_as_secret_key = SecretKey::from_slice(&t_n).unwrap();
-                        let priv_key_tweak = hex::encode(
-                            t_n_as_secret_key
-                                .add_tweak(&label_scalar)
-                                .unwrap()
-                                .secret_bytes(),
-                        );
+                        let label_bytes = hex::decode(label)?.as_slice().try_into()?;
+                        let label_scalar = Scalar::from_be_bytes(label_bytes)?;
+                        let t_n_as_secret_key = SecretKey::from_slice(&t_n)?;
+                        let priv_key_tweak =
+                            hex::encode(t_n_as_secret_key.add_tweak(&label_scalar)?.secret_bytes());
                         wallet.push(ScannedOutput {
                             pub_key: P_nm,
                             priv_key_tweak,
@@ -177,23 +160,23 @@ pub fn scanning(
             }
         }
     }
-    wallet
+    Ok(wallet)
 }
 
 pub fn verify_and_calculate_signatures(
     add_to_wallet: &mut Vec<ScannedOutput>,
     b_spend: SecretKey,
-) -> Result<Vec<OutputWithSignature>, secp256k1::Error> {
+) -> Result<Vec<OutputWithSignature>> {
     let secp = secp256k1::Secp256k1::new();
     let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"message");
     let aux = secp256k1::hashes::sha256::Hash::hash(b"random auxiliary data").to_byte_array();
 
     let mut res: Vec<OutputWithSignature> = vec![];
     for output in add_to_wallet {
-        let pubkey = XOnlyPublicKey::from_str(&output.pub_key).unwrap();
-        let tweak = hex::decode(&output.priv_key_tweak).unwrap();
-        let scalar = Scalar::from_be_bytes(tweak.try_into().unwrap()).unwrap();
-        let mut full_priv_key = b_spend.add_tweak(&scalar).unwrap();
+        let pubkey = XOnlyPublicKey::from_str(&output.pub_key)?;
+        let tweak: [u8; 32] = hex::decode(&output.priv_key_tweak)?.as_slice().try_into()?;
+        let scalar = Scalar::from_be_bytes(tweak)?;
+        let mut full_priv_key = b_spend.add_tweak(&scalar)?;
 
         let (_, parity) = full_priv_key.x_only_public_key(&secp);
 
