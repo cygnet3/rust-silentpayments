@@ -5,10 +5,8 @@ use std::{collections::HashMap, str::FromStr};
 
 use crate::{
     structs::{OutputWithSignature, ScannedOutput},
-    utils::ser_uint32,
+    utils::{ser_uint32, Result},
 };
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub fn get_receiving_addresses(
     B_scan: PublicKey,

@@ -74,7 +74,8 @@ mod tests {
             let (b_scan, b_spend, B_scan, B_spend) =
                 get_testing_silent_payment_key_pair(&given.bip32_seed);
 
-            let receiving_addresses = get_receiving_addresses(B_scan, B_spend, &given.labels).unwrap();
+            let receiving_addresses =
+                get_receiving_addresses(B_scan, B_spend, &given.labels).unwrap();
 
             let set1: HashSet<_> = receiving_addresses.iter().collect();
             let set2: HashSet<_> = expected.addresses.iter().collect();
@@ -88,7 +89,7 @@ mod tests {
                 .map(|x| XOnlyPublicKey::from_str(x).unwrap())
                 .collect();
 
-            let outpoints_hash = hash_outpoints(&given.outpoints);
+            let outpoints_hash = hash_outpoints(&given.outpoints).unwrap();
 
             let input_pub_keys: Vec<PublicKey> = given
                 .input_pub_keys
@@ -120,7 +121,8 @@ mod tests {
                 outpoints_hash,
                 outputs_to_check,
                 labels,
-            ).unwrap();
+            )
+            .unwrap();
 
             let res = verify_and_calculate_signatures(&mut add_to_wallet, b_spend).unwrap();
             assert_eq!(res, expected.outputs);

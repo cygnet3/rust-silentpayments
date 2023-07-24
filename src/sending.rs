@@ -3,9 +3,7 @@ use bech32::FromBase32;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey};
 use std::collections::HashMap;
 
-use crate::utils::{hash_outpoints, ser_uint32, sha256};
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+use crate::utils::{hash_outpoints, ser_uint32, sha256, Result};
 
 fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> Result<SecretKey> {
     let secp = Secp256k1::new();
@@ -51,7 +49,7 @@ pub fn create_outputs(
 ) -> Result<Vec<HashMap<String, f32>>> {
     let secp = Secp256k1::new();
 
-    let outpoints_hash = hash_outpoints(outpoints);
+    let outpoints_hash = hash_outpoints(outpoints)?;
 
     let a_sum = get_a_sum_secret_keys(input_priv_keys)?;
 
