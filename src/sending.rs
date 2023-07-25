@@ -1,14 +1,88 @@
-use bech32::FromBase32;
+use bech32::{FromBase32, ToBase32};
 
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey};
 use std::collections::HashMap;
 
-use crate::utils::{hash_outpoints, ser_uint32, sha256, Result};
+use crate::{
+    error::Error,
+    utils::{hash_outpoints, ser_uint32, sha256, Result},
+};
+
+pub struct SilentPaymentAddress {
+    pub scan_pubkey: PublicKey,
+    pub m_pubkey: PublicKey,
+    hrp: String,
+    version: u8,
+}
+
+impl SilentPaymentAddress {
+    pub fn new(
+        scan_pubkey: PublicKey,
+        m_pubkey: PublicKey,
+        hrp: String,
+        version: u8,
+    ) -> Result<Self> {
+        if version != 0 {
+            return Err(Error::GenericError(
+                "Can't have other version than 0 for now".to_owned(),
+            ));
+        }
+
+        Ok(SilentPaymentAddress {
+            scan_pubkey,
+            m_pubkey,
+            hrp,
+            version,
+        })
+    }
+
+    pub fn get_receiving_address(&self) -> Result<String> {
+        let version = bech32::u5::try_from_u8(self.version)?;
+
+        let B_scan_bytes = self.scan_pubkey.serialize();
+        let B_m_bytes = self.m_pubkey.serialize();
+
+        let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
+
+        data.insert(0, version);
+
+        Ok(bech32::encode(&self.hrp, data, bech32::Variant::Bech32m)?)
+    }
+}
+
+impl TryFrom<&str> for SilentPaymentAddress {
+    type Error = Error;
+
+    fn try_from(addr: &str) -> Result<Self> {
+        let (hrp, data, _variant) = bech32::decode(&addr)?;
+
+        if data.len() != 107 {
+            return Err(Error::GenericError("Address length is wrong".to_owned()));
+        }
+
+        let version = data[0].to_u8();
+
+        let data = Vec::<u8>::from_base32(&data[1..])?;
+
+        let scan_pubkey = PublicKey::from_slice(&data[..33])?;
+        let m_pubkey = PublicKey::from_slice(&data[33..])?;
+
+        SilentPaymentAddress::new(scan_pubkey, m_pubkey, hrp, version.into())
+    }
+}
+
+impl TryFrom<String> for SilentPaymentAddress {
+    type Error = Error;
+
+    fn try_from(addr: String) -> Result<Self> {
+        addr.as_str().try_into()
+    }
+}
 
 pub fn create_outputs(
     outpoints: &Vec<([u8; 32], u32)>,
     input_priv_keys: &Vec<(SecretKey, bool)>,
-    recipients: &Vec<(String, f32)>,
+    recipients: &Vec<(SilentPaymentAddress, f32)>,
 ) -> Result<Vec<HashMap<String, f32>>> {
     let secp = Secp256k1::new();
 
@@ -18,7 +92,8 @@ pub fn create_outputs(
 
     let mut silent_payment_groups: HashMap<PublicKey, Vec<(PublicKey, f32)>> = HashMap::new();
     for (payment_address, amount) in recipients {
-        let (B_scan, B_m) = decode_silent_payment_address(&payment_address)?;
+        let B_scan = payment_address.scan_pubkey;
+        let B_m = payment_address.m_pubkey;
 
         if let Some(payments) = silent_payment_groups.get_mut(&B_scan) {
             payments.push((B_m, *amount));
@@ -74,7 +149,7 @@ fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> Result<SecretKey> {
         }
     }
 
-    let (head, tail) = negated_keys.split_first().ok_or("Empty input list")?;
+    let (head, tail) = negated_keys.split_first().unwrap(); //.ok_or(GenericError("Empty input list"));
 
     let result: Result<SecretKey> = tail
         .iter()
@@ -83,15 +158,4 @@ fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> Result<SecretKey> {
         });
 
     result
-}
-
-fn decode_silent_payment_address(addr: &str) -> Result<(PublicKey, PublicKey)> {
-    let (_hrp, data, _variant) = bech32::decode(&addr)?;
-
-    let data = Vec::<u8>::from_base32(&data.get(1..).ok_or("Unexpected data size")?)?;
-
-    let B_scan = PublicKey::from_slice(&data.get(..33).ok_or("Unexpected data size")?)?;
-    let B_spend = PublicKey::from_slice(&data.get(33..).ok_or("Unexpected data size")?)?;
-
-    Ok((B_scan, B_spend))
 }

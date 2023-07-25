@@ -10,11 +10,14 @@ mod tests {
 
     use secp256k1::{SecretKey, PublicKey};
 
+    use silentpayments::sending::SilentPaymentAddress;
+
     use crate::{
         common::{
             structs::TestData,
             utils::{
-                self, decode_outpoints, decode_outputs_to_check, decode_priv_keys, decode_input_pub_keys,
+                self, decode_input_pub_keys, decode_outpoints, decode_outputs_to_check,
+                decode_priv_keys, get_testing_silent_payment_key_pair,
             },
         },
         receiving::{
@@ -48,7 +51,9 @@ mod tests {
 
             let outpoints = decode_outpoints(&given.outpoints);
 
-            let outputs = create_outputs(&outpoints, &input_priv_keys, &given.recipients).unwrap();
+            let recipient_and_amount: Vec<(SilentPaymentAddress, f32)> = given.recipients.iter().map(|(sp_addr_str, amt)| (sp_addr_str.as_str().try_into().unwrap(), *amt )).collect();
+
+            let outputs = create_outputs(&outpoints, &input_priv_keys, &recipient_and_amount).unwrap();
 
             for map in &outputs {
                 for key in map.keys() {
@@ -100,15 +105,8 @@ mod tests {
                 _ => Some(&given.labels),
             };
 
-            let mut add_to_wallet = scanning(
-                b_scan,
-                B_spend,
-                A_sum,
-                outpoints,
-                outputs_to_check,
-                labels,
-            )
-            .unwrap();
+            let mut add_to_wallet =
+                scanning(b_scan, B_spend, A_sum, outpoints, outputs_to_check, labels).unwrap();
 
             let res = verify_and_calculate_signatures(&mut add_to_wallet, b_spend).unwrap();
             assert_eq!(res, expected.outputs);

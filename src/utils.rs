@@ -2,7 +2,9 @@ use std::io::Write;
 
 use secp256k1::hashes::{sha256, Hash};
 
-pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+use crate::error::Error;
+
+pub type Result<T> = std::result::Result<T, Error>;
 
 pub fn sha256(message: &[u8]) -> [u8; 32] {
     sha256::Hash::hash(message).to_byte_array()
@@ -27,7 +29,7 @@ pub fn hash_outpoints(sending_data: &Vec<([u8; 32], u32)>) -> Result<[u8; 32]> {
     let mut engine = sha256::HashEngine::default();
 
     for v in outpoints {
-        engine.write_all(&v)?;
+        engine.write_all(&v).unwrap();
     }
 
     Ok(sha256::Hash::from_engine(engine).to_byte_array())
