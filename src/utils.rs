@@ -2,7 +2,7 @@ use std::io::Write;
 
 use secp256k1::hashes::{sha256, Hash};
 
-use crate::error::Error;
+use crate::{error::Error, structs::Outpoint};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -14,12 +14,15 @@ pub fn ser_uint32(u: u32) -> Vec<u8> {
     u.to_be_bytes().into()
 }
 
-pub fn hash_outpoints(sending_data: &Vec<([u8; 32], u32)>) -> Result<[u8; 32]> {
+pub fn hash_outpoints(sending_data: &Vec<Outpoint>) -> Result<[u8; 32]> {
     let mut outpoints: Vec<Vec<u8>> = vec![];
 
-    for (txid, vout) in sending_data {
+    for outpoint in sending_data {
+        let txid = outpoint.txid;
+        let vout = outpoint.vout;
+
         let mut bytes: Vec<u8> = Vec::new();
-        bytes.extend_from_slice(txid);
+        bytes.extend_from_slice(&txid);
         bytes.reverse();
         bytes.extend_from_slice(&vout.to_le_bytes());
         outpoints.push(bytes);

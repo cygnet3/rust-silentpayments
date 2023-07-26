@@ -10,14 +10,12 @@ mod tests {
 
     use secp256k1::{SecretKey, PublicKey};
 
-    use silentpayments::sending::SilentPaymentAddress;
-
     use crate::{
         common::{
             structs::TestData,
             utils::{
                 self, decode_input_pub_keys, decode_outpoints, decode_outputs_to_check,
-                decode_priv_keys, get_testing_silent_payment_key_pair,
+                decode_priv_keys, decode_recipients, get_testing_silent_payment_key_pair,
             },
         },
         receiving::{
@@ -51,9 +49,9 @@ mod tests {
 
             let outpoints = decode_outpoints(&given.outpoints);
 
-            let recipient_and_amount: Vec<(SilentPaymentAddress, f32)> = given.recipients.iter().map(|(sp_addr_str, amt)| (sp_addr_str.as_str().try_into().unwrap(), *amt )).collect();
+            let recipients = decode_recipients(&given.recipients);
 
-            let outputs = create_outputs(&outpoints, &input_priv_keys, &recipient_and_amount).unwrap();
+            let outputs = create_outputs(&outpoints, &input_priv_keys, &recipients).unwrap();
 
             for map in &outputs {
                 for key in map.keys() {

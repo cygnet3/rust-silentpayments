@@ -5,7 +5,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use crate::{
     error::Error,
-    structs::{OutputWithSignature, ScannedOutput},
+    structs::{Outpoint, OutputWithSignature, ScannedOutput},
     utils::{hash_outpoints, ser_uint32, Result},
 };
 
@@ -108,7 +108,7 @@ pub fn scanning(
     b_scan: SecretKey,
     B_spend: PublicKey,
     A_sum: PublicKey,
-    outpoints: Vec<([u8; 32], u32)>,
+    outpoints: Vec<Outpoint>,
     outputs_to_check: Vec<XOnlyPublicKey>,
     labels: Option<&HashMap<String, String>>,
 ) -> Result<Vec<ScannedOutput>> {

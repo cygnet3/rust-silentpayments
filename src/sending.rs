@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use crate::{
     error::Error,
+    structs::{Outpoint, Recipient},
     utils::{hash_outpoints, ser_uint32, sha256, Result},
 };
 
@@ -80,9 +81,9 @@ impl TryFrom<String> for SilentPaymentAddress {
 }
 
 pub fn create_outputs(
-    outpoints: &Vec<([u8; 32], u32)>,
+    outpoints: &Vec<Outpoint>,
     input_priv_keys: &Vec<(SecretKey, bool)>,
-    recipients: &Vec<(SilentPaymentAddress, f32)>,
+    recipients: &Vec<Recipient>,
 ) -> Result<Vec<HashMap<String, f32>>> {
     let secp = Secp256k1::new();
 
@@ -91,14 +92,16 @@ pub fn create_outputs(
     let a_sum = get_a_sum_secret_keys(input_priv_keys)?;
 
     let mut silent_payment_groups: HashMap<PublicKey, Vec<(PublicKey, f32)>> = HashMap::new();
-    for (payment_address, amount) in recipients {
+    for recipient in recipients {
+        let payment_address = &recipient.payment_address;
+        let amount = recipient.amount;
         let B_scan = payment_address.scan_pubkey;
         let B_m = payment_address.m_pubkey;
 
         if let Some(payments) = silent_payment_groups.get_mut(&B_scan) {
-            payments.push((B_m, *amount));
+            payments.push((B_m, amount));
         } else {
-            silent_payment_groups.insert(B_scan, vec![(B_m, *amount)]);
+            silent_payment_groups.insert(B_scan, vec![(B_m, amount)]);
         }
     }
 

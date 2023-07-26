@@ -2,6 +2,7 @@ use std::{fs::File, io::Read, str::FromStr};
 
 use secp256k1::{PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
 use serde_json::from_str;
+use silentpayments::structs::{Outpoint, Recipient};
 
 use super::structs::TestData;
 
@@ -46,18 +47,16 @@ pub fn get_testing_silent_payment_key_pair(
     (b_scan, b_spend, B_scan, B_spend)
 }
 
-pub fn decode_outpoints(outpoints: &Vec<(String, u32)>) -> Vec<([u8; 32], u32)> {
+pub fn decode_outpoints(outpoints: &Vec<(String, u32)>) -> Vec<Outpoint> {
     outpoints
         .iter()
-        .map(|(txid_str, vout)| {
-            (
-                hex::decode(txid_str)
-                    .unwrap()
-                    .as_slice()
-                    .try_into()
-                    .unwrap(),
-                *vout,
-            )
+        .map(|(txid_str, vout)| Outpoint {
+            txid: hex::decode(txid_str)
+                .unwrap()
+                .as_slice()
+                .try_into()
+                .unwrap(),
+            vout: *vout,
         })
         .collect()
 }
@@ -87,5 +86,15 @@ pub fn decode_outputs_to_check(outputs: &Vec<String>) -> Vec<XOnlyPublicKey> {
     outputs
         .iter()
         .map(|x| XOnlyPublicKey::from_str(x).unwrap())
+        .collect()
+}
+
+pub fn decode_recipients(recipients: &Vec<(String, f32)>) -> Vec<Recipient> {
+    recipients
+        .iter()
+        .map(|(sp_addr_str, amt)| Recipient {
+            payment_address: sp_addr_str.to_owned().try_into().unwrap(),
+            amount: *amt,
+        })
         .collect()
 }
