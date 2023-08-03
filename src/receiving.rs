@@ -1,7 +1,10 @@
 use bech32::ToBase32;
 
 use secp256k1::{hashes::Hash, Message, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use crate::{
     error::Error,
@@ -108,7 +111,7 @@ pub fn scanning(
     b_scan: SecretKey,
     B_spend: PublicKey,
     A_sum: PublicKey,
-    outpoints: Vec<Outpoint>,
+    outpoints: HashSet<Outpoint>,
     outputs_to_check: Vec<XOnlyPublicKey>,
     labels: Option<&HashMap<String, String>>,
 ) -> Result<Vec<ScannedOutput>> {

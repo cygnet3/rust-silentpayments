@@ -49,13 +49,14 @@ mod tests {
 
             let outpoints = decode_outpoints(&given.outpoints);
 
-            let recipients = decode_recipients(&given.recipients);
+            let silent_addresses = decode_recipients(&given.recipients);
 
-            let outputs = create_outputs(&outpoints, &input_priv_keys, &recipients).unwrap();
+            let outputs = create_outputs(&outpoints, &input_priv_keys, &silent_addresses).unwrap();
 
-            for map in &outputs {
-                for key in map.keys() {
-                    sending_outputs.insert(key.clone());
+            for output_pubkeys in &outputs {
+                for pubkey in output_pubkeys.1 {
+                    // TODO check if this is always true
+                    sending_outputs.insert(hex::encode(pubkey.serialize()));
                 }
             }
 

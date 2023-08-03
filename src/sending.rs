@@ -1,17 +1,17 @@
 use bech32::{FromBase32, ToBase32};
 
-use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey};
-use std::collections::HashMap;
+use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     error::Error,
-    structs::{Outpoint, Recipient},
+    structs::Outpoint,
     utils::{hash_outpoints, ser_uint32, sha256, Result},
 };
 
-pub struct SilentPaymentAddress {
-    pub scan_pubkey: PublicKey,
-    pub m_pubkey: PublicKey,
+struct SilentPaymentAddress {
+    scan_pubkey: PublicKey,
+    m_pubkey: PublicKey,
     hrp: String,
     version: u8,
 }
@@ -35,19 +35,6 @@ impl SilentPaymentAddress {
             hrp,
             version,
         })
-    }
-
-    pub fn get_receiving_address(&self) -> Result<String> {
-        let version = bech32::u5::try_from_u8(self.version)?;
-
-        let B_scan_bytes = self.scan_pubkey.serialize();
-        let B_m_bytes = self.m_pubkey.serialize();
-
-        let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
-
-        data.insert(0, version);
-
-        Ok(bech32::encode(&self.hrp, data, bech32::Variant::Bech32m)?)
     }
 }
 
@@ -80,32 +67,63 @@ impl TryFrom<String> for SilentPaymentAddress {
     }
 }
 
+impl Into<String> for SilentPaymentAddress {
+    fn into(self) -> String {
+        let version = bech32::u5::try_from_u8(self.version).unwrap();
+
+        let B_scan_bytes = self.scan_pubkey.serialize();
+        let B_m_bytes = self.m_pubkey.serialize();
+
+        let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
+
+        data.insert(0, version);
+
+        bech32::encode(&self.hrp, data, bech32::Variant::Bech32m).unwrap()
+    }
+}
+
+/// Create outputs for a given set of outpoints and their corresponding private keys.
+///
+/// # Arguments
+///
+/// * `outpoints` - A `HashSet` of outpoints (a transaction hash and an index) to be included in the computation of the shared secret.
+/// * `input_priv_keys` - A `Vec` of input private keys and a flag indicating whether the key is x-only (taproot), used to calculate the sum of private keys, which is then used in the computation of the shared secret.
+/// * `recipients` - A `Vec` of silent payment addresses to be paid.
+///
+/// # Returns
+///
+/// If successful, the function returns a `Result` wrapping a `HashMap` of silent payment addresses to a `Vec`.
+/// The `Vec` contains all the outputs that are associated with the silent payment address.
+///
+/// # Errors
+///
+/// todo
 pub fn create_outputs(
-    outpoints: &Vec<Outpoint>,
+    outpoints: &HashSet<Outpoint>,
     input_priv_keys: &Vec<(SecretKey, bool)>,
-    recipients: &Vec<Recipient>,
-) -> Result<Vec<HashMap<String, f32>>> {
+    recipients: &Vec<String>,
+) -> Result<HashMap<String, Vec<XOnlyPublicKey>>> {
     let secp = Secp256k1::new();
 
     let outpoints_hash = hash_outpoints(outpoints)?;
 
     let a_sum = get_a_sum_secret_keys(input_priv_keys)?;
 
-    let mut silent_payment_groups: HashMap<PublicKey, Vec<(PublicKey, f32)>> = HashMap::new();
+    let mut silent_payment_groups: HashMap<PublicKey, Vec<(PublicKey, SilentPaymentAddress)>> =
+        HashMap::new();
     for recipient in recipients {
-        let payment_address = &recipient.payment_address;
-        let amount = recipient.amount;
+        let payment_address: SilentPaymentAddress = recipient[..].try_into()?;
         let B_scan = payment_address.scan_pubkey;
         let B_m = payment_address.m_pubkey;
 
         if let Some(payments) = silent_payment_groups.get_mut(&B_scan) {
-            payments.push((B_m, amount));
+            payments.push((B_m, payment_address));
         } else {
-            silent_payment_groups.insert(B_scan, vec![(B_m, amount)]);
+            silent_payment_groups.insert(B_scan, vec![(B_m, payment_address)]);
         }
     }
 
-    let mut result: Vec<HashMap<String, f32>> = vec![];
+    let mut result: HashMap<String, Vec<XOnlyPublicKey>> = HashMap::new();
     for (B_scan, B_m_values) in silent_payment_groups.into_iter() {
         let mut n = 0;
 
@@ -114,7 +132,7 @@ pub fn create_outputs(
         let scalar = Scalar::from_be_bytes(outpoints_hash)?;
         let ecdh_shared_secret = intermediate.mul_tweak(&secp, &scalar)?.serialize();
 
-        for (B_m, amount) in B_m_values {
+        for (B_m, silent_payment_address) in B_m_values {
             let mut bytes: Vec<u8> = Vec::new();
             bytes.extend_from_slice(&ecdh_shared_secret);
             bytes.extend_from_slice(&ser_uint32(n));
@@ -126,11 +144,10 @@ pub fn create_outputs(
             let reskey = res.combine(&B_m)?;
             let (reskey_xonly, _) = reskey.x_only_public_key();
 
-            let mut toAdd: HashMap<String, f32> = HashMap::new();
-
-            toAdd.insert(reskey_xonly.to_string(), amount);
-
-            result.push(toAdd);
+            let entry = result
+                .entry(silent_payment_address.into())
+                .or_insert_with(Vec::new);
+            entry.push(reskey_xonly);
             n += 1;
         }
     }

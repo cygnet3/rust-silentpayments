@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::{collections::HashSet, io::Write};
 
 use secp256k1::hashes::{sha256, Hash};
 
@@ -14,7 +14,7 @@ pub fn ser_uint32(u: u32) -> Vec<u8> {
     u.to_be_bytes().into()
 }
 
-pub fn hash_outpoints(sending_data: &Vec<Outpoint>) -> Result<[u8; 32]> {
+pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> Result<[u8; 32]> {
     let mut outpoints: Vec<Vec<u8>> = vec![];
 
     for outpoint in sending_data {
