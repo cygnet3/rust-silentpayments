@@ -10,17 +10,17 @@ use crate::{
 };
 
 struct SilentPaymentAddress {
+    version: u8,
     scan_pubkey: PublicKey,
     m_pubkey: PublicKey,
-    hrp: String,
-    version: u8,
+    is_testnet: bool,
 }
 
 impl SilentPaymentAddress {
     pub fn new(
         scan_pubkey: PublicKey,
         m_pubkey: PublicKey,
-        hrp: String,
+        is_testnet: bool,
         version: u8,
     ) -> Result<Self> {
         if version != 0 {
@@ -32,7 +32,7 @@ impl SilentPaymentAddress {
         Ok(SilentPaymentAddress {
             scan_pubkey,
             m_pubkey,
-            hrp,
+            is_testnet,
             version,
         })
     }
@@ -50,12 +50,18 @@ impl TryFrom<&str> for SilentPaymentAddress {
 
         let version = data[0].to_u8();
 
+        let is_testnet = match hrp.as_str() {
+            "sp" => false,
+            "tsp" => true,
+            _ =>  return Err(Error::InvalidAddress(format!("Wrong prefix, expected \"sp\" or \"tsp\", got \"{}\"", &hrp))),
+        };
+
         let data = Vec::<u8>::from_base32(&data[1..])?;
 
         let scan_pubkey = PublicKey::from_slice(&data[..33])?;
         let m_pubkey = PublicKey::from_slice(&data[33..])?;
 
-        SilentPaymentAddress::new(scan_pubkey, m_pubkey, hrp, version.into())
+        SilentPaymentAddress::new(scan_pubkey, m_pubkey, is_testnet, version.into())
     }
 }
 
@@ -69,6 +75,11 @@ impl TryFrom<String> for SilentPaymentAddress {
 
 impl Into<String> for SilentPaymentAddress {
     fn into(self) -> String {
+        let hrp = match self.is_testnet {
+            true => "tsp",
+            false => "sp"
+        };
+
         let version = bech32::u5::try_from_u8(self.version).unwrap();
 
         let B_scan_bytes = self.scan_pubkey.serialize();
@@ -78,7 +89,7 @@ impl Into<String> for SilentPaymentAddress {
 
         data.insert(0, version);
 
-        bech32::encode(&self.hrp, data, bech32::Variant::Bech32m).unwrap()
+        bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
     }
 }
 
