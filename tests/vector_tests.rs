@@ -12,7 +12,7 @@ mod tests {
     use secp256k1::{PublicKey, SecretKey, XOnlyPublicKey};
 
     use crate::{
-        common::input::{self, get_testing_silent_payment_key_pair, ComparableHashMap, TestData},
+        common::input::{self, TestData},
         receiving::{
             get_A_sum_public_keys, get_receiving_addresses, scanning,
             verify_and_calculate_signatures,
@@ -36,9 +36,10 @@ mod tests {
         for sendingtest in test_case.sending {
             let given = sendingtest.given;
 
-            let expected = sendingtest.expected;
-            let expected_comparable: HashSet<ComparableHashMap> =
-                expected.outputs.into_iter().map(|x| x.into()).collect();
+            let expected = sendingtest.expected.outputs;
+
+            let expected_output_addresses: HashSet<String> =
+                expected.iter().map(|(x, _)| x.into()).collect();
 
             let input_priv_keys: Vec<(SecretKey, bool)> = given
                 .input_priv_keys
@@ -55,10 +56,7 @@ mod tests {
                 }
             }
 
-            let outputs_comparable: HashSet<ComparableHashMap> =
-                outputs.into_iter().map(|x| x.into()).collect();
-
-            assert_eq!(outputs_comparable, expected_comparable);
+            assert_eq!(sending_outputs, expected_output_addresses);
         }
 
         for receivingtest in &test_case.receiving {
@@ -71,8 +69,11 @@ mod tests {
             // to the expected receiving outputs
             assert!(sending_outputs.is_subset(&receiving_outputs));
 
-            let (b_scan, b_spend, B_scan, B_spend) =
-                get_testing_silent_payment_key_pair(&given.bip32_seed);
+            let b_scan = SecretKey::from_str(&given.scan_priv_key).unwrap();
+            let b_spend = SecretKey::from_str(&given.spend_priv_key).unwrap();
+            let secp = secp256k1::Secp256k1::new();
+            let B_scan: PublicKey = b_scan.public_key(&secp);
+            let B_spend: PublicKey = b_spend.public_key(&secp);
 
             let receiving_addresses =
                 get_receiving_addresses(B_scan, B_spend, &given.labels).unwrap();
