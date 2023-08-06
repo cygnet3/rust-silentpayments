@@ -1,6 +1,6 @@
 use bech32::{FromBase32, ToBase32};
 
-use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
+use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::collections::{HashMap, HashSet};
 
 use crate::{
@@ -53,7 +53,12 @@ impl TryFrom<&str> for SilentPaymentAddress {
         let is_testnet = match hrp.as_str() {
             "sp" => false,
             "tsp" => true,
-            _ =>  return Err(Error::InvalidAddress(format!("Wrong prefix, expected \"sp\" or \"tsp\", got \"{}\"", &hrp))),
+            _ => {
+                return Err(Error::InvalidAddress(format!(
+                    "Wrong prefix, expected \"sp\" or \"tsp\", got \"{}\"",
+                    &hrp
+                )))
+            }
         };
 
         let data = Vec::<u8>::from_base32(&data[1..])?;
@@ -77,7 +82,7 @@ impl Into<String> for SilentPaymentAddress {
     fn into(self) -> String {
         let hrp = match self.is_testnet {
             true => "tsp",
-            false => "sp"
+            false => "sp",
         };
 
         let version = bech32::u5::try_from_u8(self.version).unwrap();
@@ -98,7 +103,7 @@ impl Into<String> for SilentPaymentAddress {
 /// # Arguments
 ///
 /// * `outpoints` - A `HashSet` of outpoints (a transaction hash and an index) to be included in the computation of the shared secret.
-/// * `input_priv_keys` - A `Vec` of input private keys and a flag indicating whether the key is x-only (taproot), used to calculate the sum of private keys, which is then used in the computation of the shared secret.
+/// * `tweaked_scankeys` - A HashMap that maps every scan key to a tweaked version with the a_sum.
 /// * `recipients` - A `Vec` of silent payment addresses to be paid.
 ///
 /// # Returns
@@ -111,53 +116,49 @@ impl Into<String> for SilentPaymentAddress {
 /// todo
 pub fn create_outputs(
     outpoints: &HashSet<Outpoint>,
-    input_priv_keys: &Vec<(SecretKey, bool)>,
-    recipients: &Vec<String>,
+    tweaked_scankeys: HashMap<PublicKey, PublicKey>,
+    recipients: Vec<String>,
 ) -> Result<HashMap<String, Vec<XOnlyPublicKey>>> {
     let secp = Secp256k1::new();
 
-    let outpoints_hash = hash_outpoints(outpoints)?;
+    let outpoints_hash = Scalar::from_be_bytes(hash_outpoints(outpoints)?)?;
 
-    let a_sum = get_a_sum_secret_keys(input_priv_keys)?;
-
-    let mut silent_payment_groups: HashMap<PublicKey, Vec<(PublicKey, SilentPaymentAddress)>> =
+    let mut silent_payment_groups: HashMap<PublicKey, (PublicKey, Vec<SilentPaymentAddress>)> =
         HashMap::new();
     for recipient in recipients {
-        let payment_address: SilentPaymentAddress = recipient[..].try_into()?;
-        let B_scan = payment_address.scan_pubkey;
-        let B_m = payment_address.m_pubkey;
+        let recipient: SilentPaymentAddress = recipient.try_into()?;
+        let B_scan = recipient.scan_pubkey;
 
-        if let Some(payments) = silent_payment_groups.get_mut(&B_scan) {
-            payments.push((B_m, payment_address));
+        if let Some((_, payments)) = silent_payment_groups.get_mut(&B_scan) {
+            payments.push(recipient);
         } else {
-            silent_payment_groups.insert(B_scan, vec![(B_m, payment_address)]);
+            let diffie_hellman = tweaked_scankeys.get(&B_scan).ok_or(Error::GenericError(
+                "Tweaked value for this B_scan not found".to_owned(),
+            ))?;
+            let ecdh_shared_secret = diffie_hellman.mul_tweak(&secp, &outpoints_hash)?;
+
+            silent_payment_groups.insert(B_scan, (ecdh_shared_secret, vec![recipient]));
         }
     }
 
     let mut result: HashMap<String, Vec<XOnlyPublicKey>> = HashMap::new();
-    for (B_scan, B_m_values) in silent_payment_groups.into_iter() {
+    for group in silent_payment_groups.into_values() {
         let mut n = 0;
 
-        //calculate shared secret
-        let intermediate = B_scan.mul_tweak(&secp, &a_sum.into())?;
-        let scalar = Scalar::from_be_bytes(outpoints_hash)?;
-        let ecdh_shared_secret = intermediate.mul_tweak(&secp, &scalar)?.serialize();
+        let (ecdh_shared_secret, recipients) = group;
 
-        for (B_m, silent_payment_address) in B_m_values {
+        for recipient in recipients {
             let mut bytes: Vec<u8> = Vec::new();
-            bytes.extend_from_slice(&ecdh_shared_secret);
+            bytes.extend_from_slice(&ecdh_shared_secret.serialize());
             bytes.extend_from_slice(&ser_uint32(n));
 
             let t_n = sha256(&bytes);
 
-            let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())?.public_key(&secp);
-            let res = G.mul_tweak(&secp, &Scalar::from_be_bytes(t_n)?)?;
-            let reskey = res.combine(&B_m)?;
+            let res = SecretKey::from_slice(&t_n)?.public_key(&secp);
+            let reskey = res.combine(&recipient.m_pubkey)?;
             let (reskey_xonly, _) = reskey.x_only_public_key();
 
-            let entry = result
-                .entry(silent_payment_address.into())
-                .or_insert_with(Vec::new);
+            let entry = result.entry(recipient.into()).or_insert_with(Vec::new);
             entry.push(reskey_xonly);
             n += 1;
         }
@@ -165,28 +166,7 @@ pub fn create_outputs(
     Ok(result)
 }
 
-fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> Result<SecretKey> {
-    let secp = Secp256k1::new();
-
-    let mut negated_keys: Vec<SecretKey> = vec![];
-
-    for (key, is_taproot) in input {
-        let (_, parity) = key.x_only_public_key(&secp);
-
-        if *is_taproot && parity == Parity::Odd {
-            negated_keys.push(key.negate());
-        } else {
-            negated_keys.push(*key);
-        }
-    }
-
-    let (head, tail) = negated_keys.split_first().unwrap(); //.ok_or(GenericError("Empty input list"));
-
-    let result: Result<SecretKey> = tail
-        .iter()
-        .fold(Ok(*head), |acc: Result<SecretKey>, &item| {
-            Ok(acc?.add_tweak(&item.into())?)
-        });
-
-    result
+pub fn decode_scan_pubkey(silent_payment_address: String) -> Result<PublicKey> {
+    let address: SilentPaymentAddress = silent_payment_address.try_into()?;
+    Ok(address.scan_pubkey)
 }

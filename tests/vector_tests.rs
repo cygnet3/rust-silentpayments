@@ -14,8 +14,9 @@ mod tests {
         common::{
             structs::TestData,
             utils::{
-                self, decode_input_pub_keys, decode_outpoints, decode_outputs_to_check,
-                decode_priv_keys, decode_recipients, get_testing_silent_payment_key_pair,
+                self, compute_diffie_hellman, decode_input_pub_keys, decode_outpoints,
+                decode_outputs_to_check, decode_priv_keys, decode_recipients,
+                get_a_sum_secret_keys, get_testing_silent_payment_key_pair,
             },
         },
         receiving::{
@@ -51,7 +52,15 @@ mod tests {
 
             let silent_addresses = decode_recipients(&given.recipients);
 
-            let outputs = create_outputs(&outpoints, &input_priv_keys, &silent_addresses).unwrap();
+            let a_sum = get_a_sum_secret_keys(&input_priv_keys);
+
+            let mut tweaked_scankeys: HashMap<PublicKey, PublicKey> = HashMap::new();
+            for addr in &silent_addresses {
+                let B_scan = decode_scan_pubkey(addr.to_owned()).unwrap();
+                let tweak_key = compute_diffie_hellman(a_sum, B_scan);
+                tweaked_scankeys.insert(B_scan, tweak_key);
+            }
+            let outputs = create_outputs(&outpoints, tweaked_scankeys, silent_addresses).unwrap();
 
             for output_pubkeys in &outputs {
                 for pubkey in output_pubkeys.1 {

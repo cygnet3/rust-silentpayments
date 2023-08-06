@@ -95,3 +95,33 @@ pub fn decode_recipients(recipients: &Vec<(String, f32)>) -> Vec<String> {
         .map(|(sp_addr_str, _)| sp_addr_str.to_owned())
         .collect()
 }
+
+pub fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> SecretKey {
+    let secp = secp256k1::Secp256k1::new();
+
+    let mut negated_keys: Vec<SecretKey> = vec![];
+
+    for (key, is_xonly) in input {
+        let (_, parity) = key.x_only_public_key(&secp);
+
+        if *is_xonly && parity == secp256k1::Parity::Odd {
+            negated_keys.push(key.negate());
+        } else {
+            negated_keys.push(key.clone());
+        }
+    }
+
+    let (head, tail) = negated_keys.split_first().unwrap();
+
+    let result: SecretKey = tail
+        .iter()
+        .fold(*head, |acc, &item| acc.add_tweak(&item.into()).unwrap());
+
+    result
+}
+
+pub fn compute_diffie_hellman(k: SecretKey, X: PublicKey) -> PublicKey {
+    let secp = secp256k1::Secp256k1::new();
+
+    X.mul_tweak(&secp, &k.into()).unwrap()
+}
