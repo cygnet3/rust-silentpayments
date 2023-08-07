@@ -2,8 +2,7 @@
 use serde::Deserialize;
 use silentpayments::structs::OutputWithSignature;
 
-use std::hash::{Hash, Hasher};
-use std::{collections::HashMap, fs::File, io::Read};
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 pub struct TestData {

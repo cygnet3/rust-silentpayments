@@ -2,13 +2,13 @@
 mod common;
 
 use silentpayments::receiving;
-use silentpayments::sending;
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, str::FromStr};
+    use std::{collections::{HashSet, HashMap}, str::FromStr};
 
     use secp256k1::{SecretKey, PublicKey};
+    use silentpayments::sending::{decode_scan_pubkey, create_outputs};
 
     use crate::{
         common::{
@@ -16,14 +16,13 @@ mod tests {
             utils::{
                 self, compute_diffie_hellman, decode_input_pub_keys, decode_outpoints,
                 decode_outputs_to_check, decode_priv_keys, decode_recipients,
-                get_a_sum_secret_keys, get_testing_silent_payment_key_pair,
+                get_a_sum_secret_keys,
             },
         },
         receiving::{
             get_A_sum_public_keys, get_receiving_addresses, scanning,
             verify_and_calculate_signatures,
         },
-        sending::create_outputs,
     };
 
     #[test]
