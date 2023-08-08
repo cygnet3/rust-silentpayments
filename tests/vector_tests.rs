@@ -8,7 +8,7 @@ mod tests {
     use std::{collections::{HashSet, HashMap}, str::FromStr};
 
     use secp256k1::{SecretKey, PublicKey, Scalar};
-    use silentpayments::sending::{decode_scan_pubkey, create_outputs};
+    use silentpayments::sending::{decode_scan_pubkey, generate_recipient_pubkeys};
 
     use crate::{
         common::{
@@ -61,7 +61,7 @@ mod tests {
                 let ecdh_shared_secret = compute_ecdh_shared_secret(a_sum, B_scan, outpoints_hash);
                 ecdh_shared_secrets.insert(B_scan, ecdh_shared_secret);
             }
-            let outputs = create_outputs(silent_addresses, ecdh_shared_secrets).unwrap();
+            let outputs = generate_recipient_pubkeys(silent_addresses, ecdh_shared_secrets).unwrap();
 
             for output_pubkeys in &outputs {
                 for pubkey in output_pubkeys.1 {

@@ -116,7 +116,7 @@ impl Into<String> for SilentPaymentAddress {
 /// * The recipients Vec contains a silent payment address with an incorrect format.
 /// * The ecdh_shared_secrets does not contain a secret for every B_scan that are being paid to.
 /// * Edge cases are hit during elliptic curve computation (extremely unlikely).
-pub fn create_outputs(
+pub fn generate_recipient_pubkeys(
     recipients: Vec<String>,
     ecdh_shared_secrets: HashMap<PublicKey, PublicKey>,
 ) -> Result<HashMap<String, Vec<XOnlyPublicKey>>> {
