@@ -3,6 +3,7 @@ pub enum Error {
     GenericError(String),
     InvalidLabel(String),
     InvalidAddress(String),
+    InvalidSharedSecret(String),
     Secp256k1Error(secp256k1::Error),
     OutOfRangeError(secp256k1::scalar::OutOfRangeError),
     IOError(std::io::Error),

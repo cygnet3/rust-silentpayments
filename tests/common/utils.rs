@@ -1,6 +1,6 @@
-use std::{collections::HashSet, fs::File, io::Read, str::FromStr};
+use std::{collections::HashSet, fs::File, io::{Read, Write}, str::FromStr};
 
-use secp256k1::{PublicKey, SecretKey, XOnlyPublicKey};
+use secp256k1::{PublicKey, SecretKey, XOnlyPublicKey, hashes::{sha256, Hash}, Scalar};
 use serde_json::from_str;
 use silentpayments::structs::Outpoint;
 
@@ -86,8 +86,33 @@ pub fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> SecretKey {
     result
 }
 
-pub fn compute_diffie_hellman(k: SecretKey, X: PublicKey) -> PublicKey {
+pub fn compute_ecdh_shared_secret(a_sum: SecretKey, B_scan: PublicKey, outpoints_hash: Scalar) -> PublicKey {
     let secp = secp256k1::Secp256k1::new();
 
-    X.mul_tweak(&secp, &k.into()).unwrap()
+    let diffie_hellman = B_scan.mul_tweak(&secp, &a_sum.into()).unwrap();
+    diffie_hellman.mul_tweak(&secp, &outpoints_hash).unwrap()
+}
+
+pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> [u8; 32] {
+    let mut outpoints: Vec<Vec<u8>> = vec![];
+
+    for outpoint in sending_data {
+        let txid = outpoint.txid;
+        let vout = outpoint.vout;
+
+        let mut bytes: Vec<u8> = Vec::new();
+        bytes.extend_from_slice(&txid);
+        bytes.reverse();
+        bytes.extend_from_slice(&vout.to_le_bytes());
+        outpoints.push(bytes);
+    }
+    outpoints.sort();
+
+    let mut engine = sha256::HashEngine::default();
+
+    for v in outpoints {
+        engine.write_all(&v).unwrap();
+    }
+
+    sha256::Hash::from_engine(engine).to_byte_array()
 }

@@ -1,12 +1,11 @@
 use bech32::{FromBase32, ToBase32};
 
-use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
-use std::collections::{HashMap, HashSet};
+use secp256k1::{PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
+use std::collections::HashMap;
 
 use crate::{
     error::Error,
-    structs::Outpoint,
-    utils::{hash_outpoints, ser_uint32, sha256, Result},
+    utils::{ser_uint32, sha256, Result},
 };
 
 struct SilentPaymentAddress {
@@ -98,13 +97,12 @@ impl Into<String> for SilentPaymentAddress {
     }
 }
 
-/// Create outputs for a given set of outpoints and their corresponding private keys.
+/// Create outputs for a given set of silent payment recipients and their corresponding shared secrets.
 ///
 /// # Arguments
 ///
-/// * `outpoints` - A `HashSet` of outpoints (a transaction hash and an index) to be included in the computation of the shared secret.
-/// * `tweaked_scankeys` - A HashMap that maps every scan key to a tweaked version with the a_sum.
 /// * `recipients` - A `Vec` of silent payment addresses to be paid.
+/// * `ecdh_shared_secrets` - A HashMap that maps every scan key to a shared secret created with this scan key.
 ///
 /// # Returns
 ///
@@ -113,15 +111,16 @@ impl Into<String> for SilentPaymentAddress {
 ///
 /// # Errors
 ///
-/// todo
+/// This function will return an error if:
+///
+/// * The recipients Vec contains a silent payment address with an incorrect format.
+/// * The ecdh_shared_secrets does not contain a secret for every B_scan that are being paid to.
+/// * Edge cases are hit during elliptic curve computation (extremely unlikely).
 pub fn create_outputs(
-    outpoints: &HashSet<Outpoint>,
-    tweaked_scankeys: HashMap<PublicKey, PublicKey>,
     recipients: Vec<String>,
+    ecdh_shared_secrets: HashMap<PublicKey, PublicKey>,
 ) -> Result<HashMap<String, Vec<XOnlyPublicKey>>> {
     let secp = Secp256k1::new();
-
-    let outpoints_hash = Scalar::from_be_bytes(hash_outpoints(outpoints)?)?;
 
     let mut silent_payment_groups: HashMap<PublicKey, (PublicKey, Vec<SilentPaymentAddress>)> =
         HashMap::new();
@@ -132,11 +131,12 @@ pub fn create_outputs(
         if let Some((_, payments)) = silent_payment_groups.get_mut(&B_scan) {
             payments.push(recipient);
         } else {
-            let diffie_hellman = tweaked_scankeys.get(&B_scan).ok_or(Error::GenericError(
-                "Tweaked value for this B_scan not found".to_owned(),
-            ))?;
-            let ecdh_shared_secret = diffie_hellman.mul_tweak(&secp, &outpoints_hash)?;
-
+            let ecdh_shared_secret = ecdh_shared_secrets
+                .get(&B_scan)
+                .ok_or(Error::InvalidSharedSecret(
+                    "Shared secret for this B_scan not found".to_owned(),
+                ))?
+                .to_owned();
             silent_payment_groups.insert(B_scan, (ecdh_shared_secret, vec![recipient]));
         }
     }
