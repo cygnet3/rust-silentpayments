@@ -37,6 +37,10 @@ impl SilentPaymentAddress {
             version,
         })
     }
+
+    pub fn is_testnet(&self) -> bool {
+        self.is_testnet
+    }
 }
 
 impl fmt::Display for SilentPaymentAddress {
