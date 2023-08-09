@@ -37,6 +37,14 @@ impl SilentPaymentAddress {
             version,
         })
     }
+    
+    pub fn get_scan_key(&self) -> PublicKey {
+        self.scan_pubkey
+    }
+
+    pub fn get_spend_key(&self) -> PublicKey {
+        self.m_pubkey
+    }
 
     pub fn is_testnet(&self) -> bool {
         self.is_testnet
