@@ -1,11 +1,15 @@
 use bech32::ToBase32;
 
 use secp256k1::{hashes::Hash, Message, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
 use crate::{
-    structs::{OutputWithSignature, ScannedOutput},
-    utils::{ser_uint32, Result},
+    error::Error,
+    structs::{Outpoint, OutputWithSignature, ScannedOutput},
+    utils::{hash_outpoints, ser_uint32, Result},
 };
 
 pub fn get_receiving_addresses(
@@ -58,7 +62,10 @@ fn create_labeled_silent_payment_address(
     hrp: Option<&str>,
     version: Option<u8>,
 ) -> Result<String> {
-    let bytes: [u8; 32] = hex::decode(m)?.as_slice().try_into()?;
+    let bytes: [u8; 32] = hex::decode(m)?
+        .as_slice()
+        .try_into()
+        .map_err(|_| Error::GenericError("Wrong byte length".to_owned()))?;
 
     let scalar = Scalar::from_be_bytes(bytes)?;
     let secp = Secp256k1::new();
@@ -104,11 +111,14 @@ pub fn scanning(
     b_scan: SecretKey,
     B_spend: PublicKey,
     A_sum: PublicKey,
-    outpoints_hash: [u8; 32],
+    outpoints: HashSet<Outpoint>,
     outputs_to_check: Vec<XOnlyPublicKey>,
     labels: Option<&HashMap<String, String>>,
 ) -> Result<Vec<ScannedOutput>> {
     let secp = secp256k1::Secp256k1::new();
+
+    let outpoints_hash = hash_outpoints(&outpoints)?;
+
     let ecdh_shared_secret = calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash)?;
     let mut n = 0;
     let mut wallet: Vec<ScannedOutput> = vec![];
@@ -142,7 +152,10 @@ pub fn scanning(
                     if keys.iter().any(|x| x.eq(&labelkey)) {
                         let P_nm = hex::encode(output.serialize());
                         let label = labels.get(labelkeystr).unwrap();
-                        let label_bytes = hex::decode(label)?.as_slice().try_into()?;
+                        let label_bytes = hex::decode(label)?
+                            .as_slice()
+                            .try_into()
+                            .map_err(|_| Error::GenericError("Wrong byte length".to_owned()))?;
                         let label_scalar = Scalar::from_be_bytes(label_bytes)?;
                         let t_n_as_secret_key = SecretKey::from_slice(&t_n)?;
                         let priv_key_tweak =
@@ -172,7 +185,10 @@ pub fn verify_and_calculate_signatures(
     let mut res: Vec<OutputWithSignature> = vec![];
     for output in add_to_wallet {
         let pubkey = XOnlyPublicKey::from_str(&output.pub_key)?;
-        let tweak: [u8; 32] = hex::decode(&output.priv_key_tweak)?.as_slice().try_into()?;
+        let tweak: [u8; 32] = hex::decode(&output.priv_key_tweak)?
+            .as_slice()
+            .try_into()
+            .map_err(|_| Error::GenericError("Wrong byte length".to_owned()))?;
         let scalar = Scalar::from_be_bytes(tweak)?;
         let mut full_priv_key = b_spend.add_tweak(&scalar)?;
 
