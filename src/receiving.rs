@@ -180,7 +180,7 @@ pub fn verify_and_calculate_signatures(
 ) -> Result<Vec<OutputWithSignature>> {
     let secp = secp256k1::Secp256k1::new();
     let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"message");
-    let aux = secp256k1::hashes::sha256::Hash::hash(b"random auxiliary data").to_byte_array();
+    let aux = secp256k1::hashes::sha256::Hash::hash(b"random auxiliary data").into_inner();
 
     let mut res: Vec<OutputWithSignature> = vec![];
     for output in add_to_wallet {

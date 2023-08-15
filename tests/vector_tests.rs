@@ -5,18 +5,21 @@ use silentpayments::receiving;
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::{HashSet, HashMap}, str::FromStr};
+    use std::{
+        collections::{HashMap, HashSet},
+        str::FromStr,
+    };
 
-    use secp256k1::{SecretKey, PublicKey, Scalar};
+    use secp256k1::{PublicKey, Scalar, SecretKey};
     use silentpayments::sending::{decode_scan_pubkey, generate_recipient_pubkeys};
 
     use crate::{
         common::{
             structs::TestData,
             utils::{
-                self, decode_input_pub_keys, decode_outpoints,
+                self, compute_ecdh_shared_secret, decode_input_pub_keys, decode_outpoints,
                 decode_outputs_to_check, decode_priv_keys, decode_recipients,
-                get_a_sum_secret_keys, hash_outpoints, compute_ecdh_shared_secret,
+                get_a_sum_secret_keys, hash_outpoints,
             },
         },
         receiving::{
@@ -61,7 +64,8 @@ mod tests {
                 let ecdh_shared_secret = compute_ecdh_shared_secret(a_sum, B_scan, outpoints_hash);
                 ecdh_shared_secrets.insert(B_scan, ecdh_shared_secret);
             }
-            let outputs = generate_recipient_pubkeys(silent_addresses, ecdh_shared_secrets).unwrap();
+            let outputs =
+                generate_recipient_pubkeys(silent_addresses, ecdh_shared_secrets).unwrap();
 
             for output_pubkeys in &outputs {
                 for pubkey in output_pubkeys.1 {
