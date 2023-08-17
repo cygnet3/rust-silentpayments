@@ -1,8 +1,6 @@
 #![allow(non_snake_case)]
 mod common;
 
-use silentpayments::receiving;
-
 #[cfg(test)]
 mod tests {
     use std::{
@@ -11,22 +9,18 @@ mod tests {
     };
 
     use secp256k1::{PublicKey, Scalar, SecretKey};
-    use silentpayments::sending::{decode_scan_pubkey, generate_recipient_pubkeys};
+    use silentpayments::{sending::{decode_scan_pubkey, generate_recipient_pubkeys}, SilentPayment };
 
-    use crate::{
-        common::{
+    use crate::common::{
             structs::TestData,
             utils::{
                 self, compute_ecdh_shared_secret, decode_input_pub_keys, decode_outpoints,
                 decode_outputs_to_check, decode_priv_keys, decode_recipients,
-                get_a_sum_secret_keys, hash_outpoints,
+                get_a_sum_secret_keys, hash_outpoints, verify_and_calculate_signatures,
             },
-        },
-        receiving::{
-            get_A_sum_public_keys, get_receiving_addresses, scanning,
-            verify_and_calculate_signatures,
-        },
-    };
+        };
+
+    const IS_TESTNET: bool = false;
 
     #[test]
     fn test_with_test_vectors() {
@@ -77,9 +71,9 @@ mod tests {
             assert_eq!(sending_outputs, expected_output_addresses);
         }
 
-        for receivingtest in &test_case.receiving {
-            let given = &receivingtest.given;
-            let expected = &receivingtest.expected;
+        for receivingtest in test_case.receiving {
+            let given = receivingtest.given;
+            let mut expected = receivingtest.expected;
 
             let receiving_outputs: HashSet<String> = given.outputs.iter().cloned().collect();
 
@@ -90,14 +84,14 @@ mod tests {
 
             let b_scan = SecretKey::from_str(&given.scan_priv_key).unwrap();
             let b_spend = SecretKey::from_str(&given.spend_priv_key).unwrap();
-            let secp = secp256k1::Secp256k1::new();
-            let B_scan: PublicKey = b_scan.public_key(&secp);
-            let B_spend: PublicKey = b_spend.public_key(&secp);
 
-            let receiving_addresses =
-                get_receiving_addresses(B_scan, B_spend, &given.labels).unwrap();
+            let mut sp_receiver = SilentPayment::new(0, b_scan, b_spend, IS_TESTNET).unwrap();
 
-            let set1: HashSet<_> = receiving_addresses.iter().collect();
+            let labels = given.labels.iter().map(|l| l.1.to_owned()).collect();
+
+            let receiving_addresses = sp_receiver.get_receiving_addresses(labels).unwrap();
+
+            let set1: HashSet<_> = receiving_addresses.iter().map(|r| r.1).collect();
             let set2: HashSet<_> = expected.addresses.iter().collect();
 
             // check that the receiving addresses generated are equal
@@ -111,17 +105,31 @@ mod tests {
 
             let input_pub_keys = decode_input_pub_keys(&given.input_pub_keys);
 
-            let A_sum = get_A_sum_public_keys(&input_pub_keys).unwrap();
 
-            let labels = match &given.labels.len() {
-                0 => None,
-                _ => Some(&given.labels),
-            };
+            for (_, label) in &given.labels {
+                sp_receiver.add_label(label.to_owned()).unwrap();
+            }
 
-            let mut add_to_wallet =
-                scanning(b_scan, B_spend, A_sum, outpoints, outputs_to_check, labels).unwrap();
+            let add_to_wallet = sp_receiver.scan_for_outputs(
+                outpoints,
+                input_pub_keys,
+                outputs_to_check,
+            ).unwrap();
 
-            let res = verify_and_calculate_signatures(&mut add_to_wallet, b_spend).unwrap();
+            let privkeys: Vec<SecretKey> = add_to_wallet.iter().flat_map(|(_, list)| {
+                let mut ret: Vec<SecretKey> = vec![];
+                for l in list {
+                    ret.push(SecretKey::from_str(l).unwrap());
+                }
+                ret
+            })
+            .collect();
+
+            let mut res = verify_and_calculate_signatures(privkeys, b_spend).unwrap();
+
+            res.sort_by_key(|output| output.pub_key.clone());
+            expected.outputs.sort_by_key(|output| output.pub_key.clone());
+
             assert_eq!(res, expected.outputs);
         }
     }

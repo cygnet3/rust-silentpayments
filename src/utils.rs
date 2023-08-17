@@ -2,9 +2,8 @@ use std::{collections::HashSet, io::Write};
 
 use secp256k1::hashes::{sha256, Hash};
 
-use crate::{error::Error, structs::Outpoint};
 
-pub type Result<T> = std::result::Result<T, Error>;
+use crate::{Result, structs::Outpoint};
 
 pub fn sha256(message: &[u8]) -> [u8; 32] {
     sha256::Hash::hash(message).into_inner()
