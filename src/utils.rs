@@ -7,7 +7,7 @@ use crate::{error::Error, structs::Outpoint};
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub fn sha256(message: &[u8]) -> [u8; 32] {
-    sha256::Hash::hash(message).to_byte_array()
+    sha256::Hash::hash(message).into_inner()
 }
 
 pub fn ser_uint32(u: u32) -> Vec<u8> {
@@ -35,5 +35,5 @@ pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> Result<[u8; 32]> {
         engine.write_all(&v).unwrap();
     }
 
-    Ok(sha256::Hash::from_engine(engine).to_byte_array())
+    Ok(sha256::Hash::from_engine(engine).into_inner())
 }

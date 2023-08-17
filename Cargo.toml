@@ -9,7 +9,7 @@ crate-type = ["lib"]
 
 [dependencies]
 # bdk = {version = "0.20.0", features= ["all-keys"] }
-secp256k1 = {version = "0.27", features = ["bitcoin-hashes-std"] }
+secp256k1 = {version = "0.24", features = ["bitcoin-hashes-std"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 hex = "0.4"
