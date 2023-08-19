@@ -35,8 +35,8 @@ impl Label {
 }
 
 impl fmt::Debug for Label {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        todo!();
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_string())
     }
 }
 
