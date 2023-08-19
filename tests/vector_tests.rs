@@ -9,7 +9,7 @@ mod tests {
     };
 
     use secp256k1::{PublicKey, Scalar, SecretKey};
-    use silentpayments::{sending::{decode_scan_pubkey, generate_recipient_pubkeys}, SilentPayment };
+    use silentpayments::{sending::{decode_scan_pubkey, generate_recipient_pubkeys}, receiving::SilentPayment };
 
     use crate::common::{
             structs::TestData,
