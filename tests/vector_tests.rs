@@ -8,15 +8,15 @@ mod tests {
         str::FromStr,
     };
 
-    use secp256k1::{PublicKey, Scalar, SecretKey};
+    use secp256k1::{PublicKey, SecretKey};
     use silentpayments::{sending::{decode_scan_pubkey, generate_recipient_pubkeys}, receiving::SilentPayment };
 
     use crate::common::{
             structs::TestData,
             utils::{
-                self, compute_ecdh_shared_secret, decode_input_pub_keys, decode_outpoints,
+                self, sender_calculate_shared_secret, decode_input_pub_keys, decode_outpoints,
                 decode_outputs_to_check, decode_priv_keys, decode_recipients,
-                get_a_sum_secret_keys, hash_outpoints, verify_and_calculate_signatures,
+                get_a_sum_secret_keys, hash_outpoints, verify_and_calculate_signatures, get_A_sum_public_keys,
             },
         };
 
@@ -46,7 +46,7 @@ mod tests {
 
             let outpoints = decode_outpoints(&given.outpoints);
 
-            let outpoints_hash = Scalar::from_be_bytes(hash_outpoints(&outpoints)).unwrap();
+            let outpoints_hash = hash_outpoints(&outpoints);
 
             let silent_addresses = decode_recipients(&given.recipients);
 
@@ -55,7 +55,7 @@ mod tests {
             let mut ecdh_shared_secrets: HashMap<PublicKey, PublicKey> = HashMap::new();
             for addr in &silent_addresses {
                 let B_scan = decode_scan_pubkey(addr.to_owned()).unwrap();
-                let ecdh_shared_secret = compute_ecdh_shared_secret(a_sum, B_scan, outpoints_hash);
+                let ecdh_shared_secret = sender_calculate_shared_secret(a_sum, B_scan, outpoints_hash);
                 ecdh_shared_secrets.insert(B_scan, ecdh_shared_secret);
             }
             let outputs =
@@ -110,9 +110,13 @@ mod tests {
                 sp_receiver.add_label(label.to_owned()).unwrap();
             }
 
+            let A_sum = get_A_sum_public_keys(&input_pub_keys);
+            let outpoints_hash = hash_outpoints(&outpoints);
+
+            let ecdh_shared_secret = sp_receiver.calculate_shared_secret(A_sum, outpoints_hash).unwrap();
+
             let add_to_wallet = sp_receiver.scan_for_outputs(
-                outpoints,
-                input_pub_keys,
+                &ecdh_shared_secret,
                 outputs_to_check,
             ).unwrap();
 

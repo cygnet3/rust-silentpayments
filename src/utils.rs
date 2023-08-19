@@ -1,38 +1,29 @@
-use std::{collections::HashSet, io::Write};
+use crate::Result;
+use secp256k1::{
+    hashes::{sha256, Hash},
+    PublicKey, Scalar, Secp256k1,
+};
 
-use secp256k1::hashes::{sha256, Hash};
-
-
-use crate::{Result, structs::Outpoint};
-
-pub fn sha256(message: &[u8]) -> [u8; 32] {
+pub(crate) fn sha256(message: &[u8]) -> [u8; 32] {
     sha256::Hash::hash(message).into_inner()
 }
 
-pub fn ser_uint32(u: u32) -> Vec<u8> {
+pub(crate) fn ser_uint32(u: u32) -> Vec<u8> {
     u.to_be_bytes().into()
 }
 
-pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> Result<[u8; 32]> {
-    let mut outpoints: Vec<Vec<u8>> = vec![];
+pub(crate) fn calculate_P_n(B_spend: &PublicKey, t_n: Scalar) -> Result<PublicKey> {
+    let secp = Secp256k1::new();
 
-    for outpoint in sending_data {
-        let txid = outpoint.txid;
-        let vout = outpoint.vout;
+    let P_n = B_spend.add_exp_tweak(&secp, &t_n)?;
 
-        let mut bytes: Vec<u8> = Vec::new();
-        bytes.extend_from_slice(&txid);
-        bytes.reverse();
-        bytes.extend_from_slice(&vout.to_le_bytes());
-        outpoints.push(bytes);
-    }
-    outpoints.sort();
+    Ok(P_n)
+}
 
-    let mut engine = sha256::HashEngine::default();
+pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<Scalar> {
+    let mut bytes: Vec<u8> = Vec::new();
+    bytes.extend_from_slice(ecdh_shared_secret);
+    bytes.extend_from_slice(&ser_uint32(n));
 
-    for v in outpoints {
-        engine.write_all(&v).unwrap();
-    }
-
-    Ok(sha256::Hash::from_engine(engine).into_inner())
+    Ok(Scalar::from_be_bytes(crate::utils::sha256(&bytes))?)
 }

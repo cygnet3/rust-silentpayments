@@ -7,12 +7,11 @@ use std::{
 
 use secp256k1::{
     hashes::{sha256, Hash},
-    PublicKey, Scalar, SecretKey, XOnlyPublicKey, Message,
+    Message, PublicKey, Scalar, SecretKey, XOnlyPublicKey,
 };
 use serde_json::from_str;
-use silentpayments::structs::{Outpoint, OutputWithSignature};
 
-use super::structs::TestData;
+use super::structs::{Outpoint, OutputWithSignature, TestData};
 
 pub fn read_file() -> Vec<TestData> {
     let mut file = File::open("tests/resources/send_and_receive_test_vectors.json").unwrap();
@@ -94,7 +93,13 @@ pub fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> SecretKey {
     result
 }
 
-pub fn compute_ecdh_shared_secret(
+pub fn get_A_sum_public_keys(input: &Vec<PublicKey>) -> PublicKey {
+    let keys_refs: &Vec<&PublicKey> = &input.iter().collect();
+
+    PublicKey::combine_keys(keys_refs).unwrap()
+}
+
+pub fn sender_calculate_shared_secret(
     a_sum: SecretKey,
     B_scan: PublicKey,
     outpoints_hash: Scalar,
@@ -105,7 +110,7 @@ pub fn compute_ecdh_shared_secret(
     diffie_hellman.mul_tweak(&secp, &outpoints_hash).unwrap()
 }
 
-pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> [u8; 32] {
+pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> Scalar {
     let mut outpoints: Vec<Vec<u8>> = vec![];
 
     for outpoint in sending_data {
@@ -126,9 +131,8 @@ pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> [u8; 32] {
         engine.write_all(&v).unwrap();
     }
 
-    sha256::Hash::from_engine(engine).into_inner()
+    Scalar::from_be_bytes(sha256::Hash::from_engine(engine).into_inner()).unwrap()
 }
-
 
 pub fn verify_and_calculate_signatures(
     privkeys: Vec<SecretKey>,
@@ -142,7 +146,8 @@ pub fn verify_and_calculate_signatures(
     let mut res: Vec<OutputWithSignature> = vec![];
     for mut k in privkeys {
         let (P, parity) = k.x_only_public_key(&secp);
-        let tweak = k.add_tweak(&Scalar::from_be_bytes(b_spend.negate().secret_bytes()).unwrap())?;
+        let tweak =
+            k.add_tweak(&Scalar::from_be_bytes(b_spend.negate().secret_bytes()).unwrap())?;
 
         if parity == secp256k1::Parity::Odd {
             k = k.negate();
@@ -151,7 +156,6 @@ pub fn verify_and_calculate_signatures(
         let sig = secp.sign_schnorr_with_aux_rand(&msg, &k.keypair(&secp), &aux);
 
         secp.verify_schnorr(&sig, &msg, &P)?;
-
 
         res.push(OutputWithSignature {
             pub_key: P.to_string(),

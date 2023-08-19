@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 use serde::Deserialize;
-use silentpayments::structs::OutputWithSignature;
 
 use std::collections::HashMap;
 
@@ -51,4 +50,17 @@ pub struct SendingDataGiven {
 #[derive(Debug, Deserialize)]
 pub struct SendingDataExpected {
     pub outputs: Vec<(String, f32)>,
+}
+
+#[derive(PartialEq, Eq, Hash)]
+pub struct Outpoint {
+    pub txid: [u8; 32],
+    pub vout: u32,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct OutputWithSignature {
+    pub pub_key: String,
+    pub priv_key_tweak: String,
+    pub signature: String,
 }

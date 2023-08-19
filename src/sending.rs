@@ -5,8 +5,8 @@ use std::collections::HashMap;
 
 use crate::{
     error::Error,
-    Result,
     utils::{ser_uint32, sha256},
+    Result,
 };
 
 struct SilentPaymentAddress {

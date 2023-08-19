@@ -1,54 +1,17 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fmt,
     hash::{Hash, Hasher},
 };
 
-use crate::structs::Outpoint;
-use crate::utils::hash_outpoints;
+use crate::{
+    utils::{calculate_P_n, calculate_t_n},
+    Error,
+};
 use bech32::ToBase32;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
-use crate::Error;
 
-use crate::{utils::ser_uint32, Result};
-
-pub fn get_A_sum_public_keys(
-    input: &Vec<PublicKey>,
-) -> std::result::Result<PublicKey, secp256k1::Error> {
-    let keys_refs: &Vec<&PublicKey> = &input.iter().collect();
-
-    PublicKey::combine_keys(keys_refs)
-}
-
-pub fn calculate_P_n(B_spend: &PublicKey, t_n: Scalar) -> Result<PublicKey> {
-    let secp = Secp256k1::new();
-
-    let P_n = B_spend.add_exp_tweak(&secp, &t_n)?;
-
-    Ok(P_n)
-}
-
-pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<Scalar> {
-    let mut bytes: Vec<u8> = Vec::new();
-    bytes.extend_from_slice(ecdh_shared_secret);
-    bytes.extend_from_slice(&ser_uint32(n));
-
-    Ok(Scalar::from_be_bytes(crate::utils::sha256(&bytes))?)
-}
-
-pub(crate) fn calculate_ecdh_secret(
-    A_sum: &PublicKey,
-    b_scan: SecretKey,
-    outpoints_hash: [u8; 32],
-) -> Result<[u8; 33]> {
-    let secp = Secp256k1::new();
-
-    let intermediate = A_sum.mul_tweak(&secp, &b_scan.into())?;
-    let scalar = Scalar::from_be_bytes(outpoints_hash)?;
-    let ecdh_shared_secret = intermediate.mul_tweak(&secp, &scalar)?.serialize();
-
-    Ok(ecdh_shared_secret)
-}
+use crate::Result;
 
 const NULL_LABEL: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -126,7 +89,7 @@ impl From<Label> for Scalar {
     }
 }
 
-// #[derive(Debug)]
+#[derive(Debug)]
 pub struct SilentPayment {
     version: u8,
     scan_privkey: SecretKey,
@@ -229,6 +192,19 @@ impl SilentPayment {
         Ok(receiving_addresses)
     }
 
+    pub fn calculate_shared_secret(
+        &self,
+        A_sum: PublicKey,
+        outpoints_hash: Scalar,
+    ) -> Result<[u8; 33]> {
+        let secp = Secp256k1::new();
+
+        let intermediate = A_sum.mul_tweak(&secp, &self.scan_privkey.into())?;
+        let ecdh_shared_secret = intermediate.mul_tweak(&secp, &outpoints_hash)?.serialize();
+
+        Ok(ecdh_shared_secret)
+    }
+
     /// Scans for outputs by iterating through a set of public keys to check for matches.
     ///
     /// It first calculates a shared secret using the outpoints, input keys, and the scanning private key.
@@ -246,8 +222,7 @@ impl SilentPayment {
     ///
     /// # Arguments
     ///
-    /// * `outpoints` - A `HashSet` of outpoints (a transaction hash and an index) to be included in the computation of the shared secret.
-    /// * `input_keys` - A `Vec` of input keys used to calculate the sum of public keys, which is then used in the computation of the shared secret.
+    /// * `ecdh_shared_secret` -  A reference to a 33 byte array computed shared secret, the result of `outpoints_hash * b_{scan} * A.
     /// * `pubkeys_to_check` - A `HashSet` of public keys to check for matches with the public key derived from the tweaked private key.
     ///
     /// # Returns
@@ -258,25 +233,14 @@ impl SilentPayment {
     ///
     /// This function will return an error if:
     ///
-    /// * The calculation of the tweak, the addition of the tweak to the spend private key, or the derivation of the new public key fails.
     /// * One of the public keys to scan can't be parsed into a valid x only public key.
     /// * The computation of the difference between a public key to check and the new public key fails.
     pub fn scan_for_outputs(
         &self,
-        outpoints: HashSet<Outpoint>,
-        input_keys: Vec<PublicKey>,
+        ecdh_shared_secret: &[u8; 33],
         pubkeys_to_check: Vec<XOnlyPublicKey>,
     ) -> Result<HashMap<String, Vec<String>>> {
         let secp = secp256k1::Secp256k1::new();
-
-        let outpoints_hash = hash_outpoints(&outpoints).unwrap();
-        let A_sum = get_A_sum_public_keys(&input_keys).unwrap();
-
-        let ecdh_shared_secret = calculate_ecdh_secret(&A_sum, self.scan_privkey, outpoints_hash)?;
-
-        // for p in &pubkeys_to_check {
-        //     println!("{}", p);
-        // }
 
         fn insert_new_key(
             mut new_privkey: SecretKey,
@@ -304,7 +268,6 @@ impl SilentPayment {
         while my_outputs.len() == n as usize {
             let t_n: Scalar = calculate_t_n(&ecdh_shared_secret, n)?;
             let P_n: PublicKey = calculate_P_n(&self.spend_privkey.public_key(&secp), t_n)?;
-            println!("{}", P_n.x_only_public_key().0);
             if pubkeys_to_check
                 .iter()
                 .any(|p| p.eq(&P_n.x_only_public_key().0))
@@ -342,7 +305,6 @@ impl SilentPayment {
 
 #[cfg(test)]
 mod tests {
-
     use super::Label;
 
     #[test]

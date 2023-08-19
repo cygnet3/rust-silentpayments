@@ -1,12 +1,10 @@
 #![allow(dead_code, non_snake_case)]
 
-pub mod error;
+mod error;
 pub mod receiving;
 pub mod sending;
-pub mod structs;
-pub mod utils;
+mod utils;
+
+pub use crate::error::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
-
-use crate::error::Error;
-
