@@ -91,18 +91,6 @@ mod tests {
 
             let mut sp_receiver = SilentPayment::new(0, b_scan, b_spend, IS_TESTNET).unwrap();
 
-            let labels = given.labels.iter().map(|l| l.1.to_owned()).collect();
-
-            let receiving_addresses = sp_receiver.get_receiving_addresses(labels).unwrap();
-
-            let set1: HashSet<_> = receiving_addresses.iter().map(|r| r.1).collect();
-            let set2: HashSet<_> = expected.addresses.iter().collect();
-
-            // check that the receiving addresses generated are equal
-            // to the expected addresses
-            assert_eq!(set1, set2);
-
-            // can be even or odd !
             let outputs_to_check = decode_outputs_to_check(&given.outputs);
 
             let outpoints = decode_outpoints(&given.outpoints);
@@ -110,8 +98,26 @@ mod tests {
             let input_pub_keys = decode_input_pub_keys(&given.input_pub_keys);
 
             for (_, label) in &given.labels {
-                sp_receiver.add_label(label.to_owned()).unwrap();
+                let label = label[..].try_into().unwrap();
+                sp_receiver.add_label(label).unwrap();
             }
+
+            let mut receiving_addresses: HashSet<String> = HashSet::new();
+            // get receiving address for no label
+            receiving_addresses.insert(sp_receiver.get_receiving_address(None).unwrap());
+
+            // get receiving addresses for every label
+            let labels = sp_receiver.list_labels();
+            for label in &labels {
+                receiving_addresses.insert(sp_receiver.get_receiving_address(Some(label)).unwrap());
+            }
+
+            let set1: HashSet<_> = receiving_addresses.iter().collect();
+            let set2: HashSet<_> = expected.addresses.iter().collect();
+
+            // check that the receiving addresses generated are equal
+            // to the expected addresses
+            assert_eq!(set1, set2);
 
             let A_sum_times_outpoints_hash =
                 calculate_A_sum_times_outpoints_hash(&input_pub_keys, &outpoints);

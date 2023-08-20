@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt,
     hash::{Hash, Hasher},
 };
@@ -13,10 +13,10 @@ use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey}
 
 use crate::Result;
 
-const NULL_LABEL: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+const NULL_LABEL: Label = Label { s: Scalar::ZERO };
 
-#[derive(Eq, PartialEq)]
-struct Label {
+#[derive(Eq, PartialEq, Clone)]
+pub struct Label {
     s: Scalar,
 }
 
@@ -116,18 +116,27 @@ impl SilentPayment {
         })
     }
 
-    /// Takes an hexstring that must be exactly 32B and must be on the order of the curve
-    /// Returns a bool on success, `true` if the label was new, `false` if it already existed in our list
-    pub fn add_label(&mut self, label: String) -> Result<bool> {
+    /// Takes a Label and adds it to the list of labels that this recipient uses.
+    /// Returns a bool on success, `true` if the label was new, `false` if it already existed in our list.
+    pub fn add_label(&mut self, label: Label) -> Result<bool> {
         let secp = Secp256k1::new();
 
-        let m: Label = label.try_into()?;
-        let secret = SecretKey::from_slice(&m.as_inner().to_be_bytes())?;
-        let old_value = self.labels.insert(secret.public_key(&secp), m);
+        let secret = SecretKey::from_slice(&label.as_inner().to_be_bytes())?;
+        let old_value = self.labels.insert(secret.public_key(&secp), label);
         Ok(old_value.is_none())
     }
 
-    fn encode_silent_payment_address(&self, hrp: &str, m_pubkey: PublicKey) -> String {
+    /// List all currently known labels used by this recipient.
+    pub fn list_labels(&self) -> HashSet<Label> {
+        self.labels.values().cloned().collect()
+    }
+
+    fn encode_silent_payment_address(&self, m_pubkey: PublicKey) -> String {
+        let hrp = match self.is_testnet {
+            false => "sp",
+            true => "tsp",
+        };
+
         let secp = Secp256k1::new();
         let version = bech32::u5::try_from_u8(self.version).unwrap();
 
@@ -141,39 +150,37 @@ impl SilentPayment {
         bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
     }
 
-    fn create_labeled_silent_payment_address(&self, m: Label, hrp: &str) -> Result<String> {
+    /// Get the bech32m-encoded silent payment address, optionally for a specific label.
+    ///
+    /// # Arguments
+    ///
+    /// * `label` - An `Option` that wraps a reference to a Label. If the Option is None, then no label is being used.
+    ///
+    /// # Returns
+    ///
+    /// If successful, the function returns a `Result` wrapping a String, which is the bech32m encoded silent payment address.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    ///
+    /// * If the label is not known for this recipient.
+    /// * If key addition results in an invalid key.
+    pub fn get_receiving_address(&mut self, label: Option<&Label>) -> Result<String> {
         let secp = Secp256k1::new();
-        let base_spend_key = self.spend_privkey.clone();
-        let b_m = base_spend_key.add_tweak(m.as_inner())?;
-
-        Ok(self.encode_silent_payment_address(hrp, b_m.public_key(&secp)))
-    }
-
-    pub fn get_receiving_addresses(
-        &mut self,
-        labels: Vec<String>,
-    ) -> Result<HashMap<String, String>> {
-        let mut receiving_addresses: HashMap<String, String> = HashMap::new();
-
-        let hrp = match self.is_testnet {
-            false => "sp",
-            true => "tsp",
+        let base_spend_key = self.spend_privkey;
+        let b_m = match label {
+            Some(label) => {
+                if self.labels.values().any(|l| l.eq(label)) {
+                    base_spend_key.add_tweak(label.as_inner())?
+                } else {
+                    return Err(Error::InvalidLabel("Label not known".to_owned()));
+                }
+            }
+            None => base_spend_key,
         };
 
-        let secp = Secp256k1::new();
-        receiving_addresses.insert(
-            NULL_LABEL.to_owned(),
-            self.encode_silent_payment_address(hrp, self.spend_privkey.public_key(&secp)),
-        );
-        for label in labels {
-            let _is_new_label = self.add_label(label.clone())?;
-            receiving_addresses.insert(
-                label.clone(),
-                self.create_labeled_silent_payment_address(label.try_into()?, hrp)?,
-            );
-        }
-
-        Ok(receiving_addresses)
+        Ok(self.encode_silent_payment_address(b_m.public_key(&secp)))
     }
 
     /// Helper function that can be used to calculate the elliptic curce shared secret.
@@ -243,16 +250,16 @@ impl SilentPayment {
             my_outputs: &mut HashMap<String, Vec<String>>,
             label: Option<&Label>,
         ) -> Result<SecretKey> {
-            let label_string: String = match label {
+            let label: &Label = match label {
                 Some(l) => {
                     new_privkey = new_privkey.add_tweak(l.as_inner())?;
-                    l.as_string()
+                    l
                 }
-                None => NULL_LABEL.to_owned(),
+                None => &NULL_LABEL,
             };
 
             my_outputs
-                .entry(label_string)
+                .entry(label.as_string())
                 .or_insert_with(Vec::new)
                 .push(hex::encode(&new_privkey.secret_bytes()));
 
