@@ -9,16 +9,19 @@ mod tests {
     };
 
     use secp256k1::{PublicKey, SecretKey};
-    use silentpayments::{sending::{decode_scan_pubkey, generate_recipient_pubkeys}, receiving::SilentPayment };
+    use silentpayments::{
+        receiving::SilentPayment,
+        sending::{decode_scan_pubkey, generate_recipient_pubkeys},
+    };
 
     use crate::common::{
-            structs::TestData,
-            utils::{
-                self, sender_calculate_shared_secret, decode_input_pub_keys, decode_outpoints,
-                decode_outputs_to_check, decode_priv_keys, decode_recipients,
-                get_a_sum_secret_keys, hash_outpoints, verify_and_calculate_signatures, get_A_sum_public_keys,
-            },
-        };
+        structs::TestData,
+        utils::{
+            self, calculate_A_sum_times_outpoints_hash, decode_input_pub_keys, decode_outpoints,
+            decode_outputs_to_check, decode_priv_keys, decode_recipients, get_a_sum_secret_keys,
+            hash_outpoints, sender_calculate_shared_secret, verify_and_calculate_signatures,
+        },
+    };
 
     const IS_TESTNET: bool = false;
 
@@ -55,7 +58,8 @@ mod tests {
             let mut ecdh_shared_secrets: HashMap<PublicKey, PublicKey> = HashMap::new();
             for addr in &silent_addresses {
                 let B_scan = decode_scan_pubkey(addr.to_owned()).unwrap();
-                let ecdh_shared_secret = sender_calculate_shared_secret(a_sum, B_scan, outpoints_hash);
+                let ecdh_shared_secret =
+                    sender_calculate_shared_secret(a_sum, B_scan, outpoints_hash);
                 ecdh_shared_secrets.insert(B_scan, ecdh_shared_secret);
             }
             let outputs =
@@ -105,34 +109,38 @@ mod tests {
 
             let input_pub_keys = decode_input_pub_keys(&given.input_pub_keys);
 
-
             for (_, label) in &given.labels {
                 sp_receiver.add_label(label.to_owned()).unwrap();
             }
 
-            let A_sum = get_A_sum_public_keys(&input_pub_keys);
-            let outpoints_hash = hash_outpoints(&outpoints);
+            let A_sum_times_outpoints_hash =
+                calculate_A_sum_times_outpoints_hash(&input_pub_keys, &outpoints);
 
-            let ecdh_shared_secret = sp_receiver.calculate_shared_secret(A_sum, outpoints_hash).unwrap();
+            let ecdh_shared_secret = sp_receiver
+                .calculate_shared_secret(A_sum_times_outpoints_hash)
+                .unwrap();
 
-            let add_to_wallet = sp_receiver.scan_for_outputs(
-                &ecdh_shared_secret,
-                outputs_to_check,
-            ).unwrap();
+            let add_to_wallet = sp_receiver
+                .scan_for_outputs(&ecdh_shared_secret, outputs_to_check)
+                .unwrap();
 
-            let privkeys: Vec<SecretKey> = add_to_wallet.iter().flat_map(|(_, list)| {
-                let mut ret: Vec<SecretKey> = vec![];
-                for l in list {
-                    ret.push(SecretKey::from_str(l).unwrap());
-                }
-                ret
-            })
-            .collect();
+            let privkeys: Vec<SecretKey> = add_to_wallet
+                .iter()
+                .flat_map(|(_, list)| {
+                    let mut ret: Vec<SecretKey> = vec![];
+                    for l in list {
+                        ret.push(SecretKey::from_str(l).unwrap());
+                    }
+                    ret
+                })
+                .collect();
 
             let mut res = verify_and_calculate_signatures(privkeys, b_spend).unwrap();
 
             res.sort_by_key(|output| output.pub_key.clone());
-            expected.outputs.sort_by_key(|output| output.pub_key.clone());
+            expected
+                .outputs
+                .sort_by_key(|output| output.pub_key.clone());
 
             assert_eq!(res, expected.outputs);
         }

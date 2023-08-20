@@ -99,6 +99,17 @@ pub fn get_A_sum_public_keys(input: &Vec<PublicKey>) -> PublicKey {
     PublicKey::combine_keys(keys_refs).unwrap()
 }
 
+pub fn calculate_A_sum_times_outpoints_hash(
+    input_pub_keys: &Vec<PublicKey>,
+    outpoints: &HashSet<Outpoint>,
+) -> PublicKey {
+    let secp = secp256k1::Secp256k1::new();
+    let A_sum = get_A_sum_public_keys(input_pub_keys);
+    let outpoints_hash = hash_outpoints(outpoints);
+
+    A_sum.mul_tweak(&secp, &outpoints_hash).unwrap()
+}
+
 pub fn sender_calculate_shared_secret(
     a_sum: SecretKey,
     B_scan: PublicKey,

@@ -57,14 +57,7 @@ impl TryFrom<String> for Label {
     type Error = Error;
 
     fn try_from(s: String) -> Result<Label> {
-        // Is it valid hex?
-        let bytes = hex::decode(s)?;
-        // Is it 32B long?
-        let bytes: [u8; 32] = bytes.try_into().map_err(|_| {
-            Error::InvalidLabel("Label must be 32 bytes (256 bits) long".to_owned())
-        })?;
-        // Is it on the curve? If yes, push it on our labels list
-        Ok(Label::from(Scalar::from_be_bytes(bytes)?))
+        Label::try_from(&s[..])
     }
 }
 
@@ -134,22 +127,12 @@ impl SilentPayment {
         Ok(old_value.is_none())
     }
 
-    fn encode_silent_payment_address(
-        &self,
-        hrp: Option<&str>,
-        m_pubkey: Option<PublicKey>,
-    ) -> String {
+    fn encode_silent_payment_address(&self, hrp: &str, m_pubkey: PublicKey) -> String {
         let secp = Secp256k1::new();
-        let hrp = hrp.unwrap_or("sp");
         let version = bech32::u5::try_from_u8(self.version).unwrap();
 
         let B_scan_bytes = self.scan_privkey.public_key(&secp).serialize();
-        let B_m_bytes: [u8; 33];
-        if let Some(spend_pubkey) = m_pubkey {
-            B_m_bytes = spend_pubkey.serialize();
-        } else {
-            B_m_bytes = self.spend_privkey.public_key(&secp).serialize();
-        }
+        let B_m_bytes = m_pubkey.serialize();
 
         let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
 
@@ -158,12 +141,12 @@ impl SilentPayment {
         bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
     }
 
-    fn create_labeled_silent_payment_address(&self, m: Label, hrp: Option<&str>) -> Result<String> {
+    fn create_labeled_silent_payment_address(&self, m: Label, hrp: &str) -> Result<String> {
         let secp = Secp256k1::new();
         let base_spend_key = self.spend_privkey.clone();
         let b_m = base_spend_key.add_tweak(m.as_inner())?;
 
-        Ok(self.encode_silent_payment_address(hrp, Some(b_m.public_key(&secp))))
+        Ok(self.encode_silent_payment_address(hrp, b_m.public_key(&secp)))
     }
 
     pub fn get_receiving_addresses(
@@ -177,30 +160,43 @@ impl SilentPayment {
             true => "tsp",
         };
 
+        let secp = Secp256k1::new();
         receiving_addresses.insert(
             NULL_LABEL.to_owned(),
-            self.encode_silent_payment_address(Some(hrp), None),
+            self.encode_silent_payment_address(hrp, self.spend_privkey.public_key(&secp)),
         );
         for label in labels {
             let _is_new_label = self.add_label(label.clone())?;
             receiving_addresses.insert(
                 label.clone(),
-                self.create_labeled_silent_payment_address(label.try_into()?, Some(hrp))?,
+                self.create_labeled_silent_payment_address(label.try_into()?, hrp)?,
             );
         }
 
         Ok(receiving_addresses)
     }
 
-    pub fn calculate_shared_secret(
-        &self,
-        A_sum: PublicKey,
-        outpoints_hash: Scalar,
-    ) -> Result<[u8; 33]> {
+    /// Helper function that can be used to calculate the elliptic curce shared secret.
+    ///
+    /// # Arguments
+    ///
+    /// * `tweak_data` -  The tweak data given as a PublicKey, the result of elliptic-curve multiplication of the outpoints_hash and `A_sum` (the sum of all input public keys).
+    ///
+    /// # Returns
+    ///
+    /// If successful, the function returns a `Result` wrapping an 33-byte array, which is the shared secret that only the sender and the recipient of a silent payment can derive. This result can be used in the scan_for_outputs function.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    ///
+    /// * If key multiplication with the scan private key returns an invalid result.
+    pub fn calculate_shared_secret(&self, tweak_data: PublicKey) -> Result<[u8; 33]> {
         let secp = Secp256k1::new();
 
-        let intermediate = A_sum.mul_tweak(&secp, &self.scan_privkey.into())?;
-        let ecdh_shared_secret = intermediate.mul_tweak(&secp, &outpoints_hash)?.serialize();
+        let ecdh_shared_secret = tweak_data
+            .mul_tweak(&secp, &self.scan_privkey.into())?
+            .serialize();
 
         Ok(ecdh_shared_secret)
     }
@@ -222,7 +218,7 @@ impl SilentPayment {
     ///
     /// # Arguments
     ///
-    /// * `ecdh_shared_secret` -  A reference to a 33 byte array computed shared secret, the result of `outpoints_hash * b_{scan} * A.
+    /// * `ecdh_shared_secret` -  A reference to a 33 byte array computed shared secret, the result of `outpoints_hash * b_{scan} * A`.
     /// * `pubkeys_to_check` - A `HashSet` of public keys to check for matches with the public key derived from the tweaked private key.
     ///
     /// # Returns
@@ -308,7 +304,14 @@ mod tests {
     use super::Label;
 
     #[test]
-    fn string_to_label() {
+    fn string_to_label_success() {
+        let s: String =
+            "8e4bbee712779f746337cadf39e8b1eab8e8869dd40f2e3a7281113e858ffc0b".to_owned();
+        Label::try_from(s).unwrap();
+    }
+
+    #[test]
+    fn string_to_label_failure() {
         // Invalid characters
         let s: String = "deadbeef?:{+!&".to_owned();
         Label::try_from(s).unwrap_err();

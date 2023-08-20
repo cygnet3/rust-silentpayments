@@ -25,5 +25,5 @@ pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<Sca
     bytes.extend_from_slice(ecdh_shared_secret);
     bytes.extend_from_slice(&ser_uint32(n));
 
-    Ok(Scalar::from_be_bytes(crate::utils::sha256(&bytes))?)
+    Ok(Scalar::from_be_bytes(sha256(&bytes))?)
 }
