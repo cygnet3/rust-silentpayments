@@ -54,8 +54,6 @@ pub(crate) fn insert_new_key(
     if res {
         Ok(())
     } else {
-        Err(Error::GenericError(
-            "Duplicate key found".to_owned(),
-        ))
+        Err(Error::GenericError("Duplicate key found".to_owned()))
     }
 }

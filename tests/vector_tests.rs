@@ -17,7 +17,7 @@ mod tests {
     use crate::common::{
         structs::TestData,
         utils::{
-            self, calculate_A_sum_times_outpoints_hash, decode_input_pub_keys, decode_outpoints,
+            self, calculate_tweak_data_for_recipient, decode_input_pub_keys, decode_outpoints,
             decode_outputs_to_check, decode_priv_keys, decode_recipients, get_a_sum_secret_keys,
             hash_outpoints, sender_calculate_shared_secret, verify_and_calculate_signatures,
         },
@@ -119,15 +119,10 @@ mod tests {
             // to the expected addresses
             assert_eq!(set1, set2);
 
-            let A_sum_times_outpoints_hash =
-                calculate_A_sum_times_outpoints_hash(&input_pub_keys, &outpoints);
-
-            let ecdh_shared_secret = sp_receiver
-                .calculate_shared_secret(A_sum_times_outpoints_hash)
-                .unwrap();
+            let tweak_data = calculate_tweak_data_for_recipient(&input_pub_keys, &outpoints);
 
             let scanned_outputs_received = sp_receiver
-                .scan_transaction(&ecdh_shared_secret, outputs_to_check)
+                .scan_transaction(&tweak_data, outputs_to_check)
                 .unwrap();
 
             let privkeys: Vec<SecretKey> = scanned_outputs_received

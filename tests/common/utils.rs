@@ -99,7 +99,7 @@ pub fn get_A_sum_public_keys(input: &Vec<PublicKey>) -> PublicKey {
     PublicKey::combine_keys(keys_refs).unwrap()
 }
 
-pub fn calculate_A_sum_times_outpoints_hash(
+pub fn calculate_tweak_data_for_recipient(
     input_pub_keys: &Vec<PublicKey>,
     outpoints: &HashSet<Outpoint>,
 ) -> PublicKey {

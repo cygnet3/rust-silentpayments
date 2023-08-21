@@ -82,6 +82,9 @@ impl From<Label> for Scalar {
     }
 }
 
+/// A struct representing a silent payment recipient.
+/// It can be used to scan for transaction outputs belonging to us by using the scan_transaction function.
+/// It internally manages labels, which can be added by using the add_label function.
 #[derive(Debug)]
 pub struct SilentPayment {
     version: u8,
@@ -164,55 +167,11 @@ impl SilentPayment {
         Ok(self.encode_silent_payment_address(b_m.public_key(&secp)))
     }
 
-    fn encode_silent_payment_address(&self, m_pubkey: PublicKey) -> String {
-        let hrp = match self.is_testnet {
-            false => "sp",
-            true => "tsp",
-        };
-
-        let secp = Secp256k1::new();
-        let version = bech32::u5::try_from_u8(self.version).unwrap();
-
-        let B_scan_bytes = self.scan_privkey.public_key(&secp).serialize();
-        let B_m_bytes = m_pubkey.serialize();
-
-        let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
-
-        data.insert(0, version);
-
-        bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
-    }
-
-    /// Helper function that can be used to calculate the elliptic curce shared secret.
-    ///
-    /// # Arguments
-    ///
-    /// * `tweak_data` -  The tweak data given as a PublicKey, the result of elliptic-curve multiplication of the outpoints_hash and `A_sum` (the sum of all input public keys).
-    ///
-    /// # Returns
-    ///
-    /// If successful, the function returns a `Result` wrapping an 33-byte array, which is the shared secret that only the sender and the recipient of a silent payment can derive. This result can be used in the scan_for_outputs function.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if:
-    ///
-    /// * If key multiplication with the scan private key returns an invalid result.
-    pub fn calculate_shared_secret(&self, tweak_data: PublicKey) -> Result<[u8; 33]> {
-        let secp = Secp256k1::new();
-
-        let ecdh_shared_secret = tweak_data
-            .mul_tweak(&secp, &self.scan_privkey.into())?
-            .serialize();
-
-        Ok(ecdh_shared_secret)
-    }
-
     /// Scans a transaction for outputs belonging to us.
     ///
     /// # Arguments
     ///
-    /// * `ecdh_shared_secret` -  A reference to a 33 byte array computed shared secret for this transaction, the result of `outpoints_hash * b_{scan} * A`.
+    /// * `tweak_data` -  The tweak data for the transaction as a PublicKey, the result of elliptic-curve multiplication of `outpoints_hash * A`.
     /// * `pubkeys_to_check` - A `HashSet` of public keys of all (unspent) taproot output of the transaction.
     ///
     /// # Returns
@@ -227,11 +186,12 @@ impl SilentPayment {
     /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
     pub fn scan_transaction(
         &self,
-        ecdh_shared_secret: &[u8; 33],
+        tweak_data: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
     ) -> Result<HashMap<Label, HashSet<SecretKey>>> {
         let secp = secp256k1::Secp256k1::new();
         let B_spend = &self.spend_privkey.public_key(&secp);
+        let ecdh_shared_secret = self.calculate_shared_secret(tweak_data)?;
 
         let mut my_outputs: HashMap<Label, HashSet<SecretKey>> = HashMap::new();
         let mut n: u32 = 0;
@@ -266,6 +226,50 @@ impl SilentPayment {
             n += 1;
         }
         Ok(my_outputs)
+    }
+
+    /// Helper function that can be used to calculate the elliptic curce shared secret.
+    ///
+    /// # Arguments
+    ///
+    /// * `tweak_data` -  The tweak data given as a PublicKey, the result of elliptic-curve multiplication of the outpoints_hash and `A_sum` (the sum of all input public keys).
+    ///
+    /// # Returns
+    ///
+    /// If successful, the function returns a `Result` wrapping an 33-byte array, which is the shared secret that only the sender and the recipient of a silent payment can derive. This result can be used in the scan_for_outputs function.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    ///
+    /// * If key multiplication with the scan private key returns an invalid result.
+    fn calculate_shared_secret(&self, tweak_data: &PublicKey) -> Result<[u8; 33]> {
+        let secp = Secp256k1::new();
+
+        let ecdh_shared_secret = tweak_data
+            .mul_tweak(&secp, &self.scan_privkey.into())?
+            .serialize();
+
+        Ok(ecdh_shared_secret)
+    }
+
+    fn encode_silent_payment_address(&self, m_pubkey: PublicKey) -> String {
+        let hrp = match self.is_testnet {
+            false => "sp",
+            true => "tsp",
+        };
+
+        let secp = Secp256k1::new();
+        let version = bech32::u5::try_from_u8(self.version).unwrap();
+
+        let B_scan_bytes = self.scan_privkey.public_key(&secp).serialize();
+        let B_m_bytes = m_pubkey.serialize();
+
+        let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
+
+        data.insert(0, version);
+
+        bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
     }
 }
 
