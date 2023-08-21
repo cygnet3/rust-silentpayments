@@ -1,7 +1,12 @@
-use crate::Result;
+use std::collections::{HashMap, HashSet};
+
+use crate::{
+    receiving::{Label, NULL_LABEL},
+    Error, Result,
+};
 use secp256k1::{
     hashes::{sha256, Hash},
-    PublicKey, Scalar, Secp256k1,
+    PublicKey, Scalar, Secp256k1, SecretKey,
 };
 
 pub(crate) fn sha256(message: &[u8]) -> [u8; 32] {
@@ -26,4 +31,31 @@ pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<Sca
     bytes.extend_from_slice(&ser_uint32(n));
 
     Ok(Scalar::from_be_bytes(sha256(&bytes))?)
+}
+
+pub(crate) fn insert_new_key(
+    mut new_privkey: SecretKey,
+    my_outputs: &mut HashMap<Label, HashSet<SecretKey>>,
+    label: Option<&Label>,
+) -> Result<()> {
+    let label: &Label = match label {
+        Some(l) => {
+            new_privkey = new_privkey.add_tweak(l.as_inner())?;
+            l
+        }
+        None => &NULL_LABEL,
+    };
+
+    let res = my_outputs
+        .entry(label.to_owned())
+        .or_insert_with(HashSet::new)
+        .insert(new_privkey);
+
+    if res {
+        Ok(())
+    } else {
+        Err(Error::GenericError(
+            "Duplicate key found".to_owned(),
+        ))
+    }
 }

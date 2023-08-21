@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    utils::{calculate_P_n, calculate_t_n},
+    utils::{calculate_P_n, calculate_t_n, insert_new_key},
     Error,
 };
 use bech32::ToBase32;
@@ -13,7 +13,7 @@ use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey}
 
 use crate::Result;
 
-const NULL_LABEL: Label = Label { s: Scalar::ZERO };
+pub(crate) const NULL_LABEL: Label = Label { s: Scalar::ZERO };
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct Label {
@@ -131,25 +131,6 @@ impl SilentPayment {
         self.labels.values().cloned().collect()
     }
 
-    fn encode_silent_payment_address(&self, m_pubkey: PublicKey) -> String {
-        let hrp = match self.is_testnet {
-            false => "sp",
-            true => "tsp",
-        };
-
-        let secp = Secp256k1::new();
-        let version = bech32::u5::try_from_u8(self.version).unwrap();
-
-        let B_scan_bytes = self.scan_privkey.public_key(&secp).serialize();
-        let B_m_bytes = m_pubkey.serialize();
-
-        let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
-
-        data.insert(0, version);
-
-        bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
-    }
-
     /// Get the bech32m-encoded silent payment address, optionally for a specific label.
     ///
     /// # Arguments
@@ -183,6 +164,25 @@ impl SilentPayment {
         Ok(self.encode_silent_payment_address(b_m.public_key(&secp)))
     }
 
+    fn encode_silent_payment_address(&self, m_pubkey: PublicKey) -> String {
+        let hrp = match self.is_testnet {
+            false => "sp",
+            true => "tsp",
+        };
+
+        let secp = Secp256k1::new();
+        let version = bech32::u5::try_from_u8(self.version).unwrap();
+
+        let B_scan_bytes = self.scan_privkey.public_key(&secp).serialize();
+        let B_m_bytes = m_pubkey.serialize();
+
+        let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
+
+        data.insert(0, version);
+
+        bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
+    }
+
     /// Helper function that can be used to calculate the elliptic curce shared secret.
     ///
     /// # Arguments
@@ -208,97 +208,60 @@ impl SilentPayment {
         Ok(ecdh_shared_secret)
     }
 
-    /// Scans for outputs by iterating through a set of public keys to check for matches.
-    ///
-    /// It first calculates a shared secret using the outpoints, input keys, and the scanning private key.
-    /// Then, it creates a loop, where for each iteration, it computes a new tweak based on the shared secret and the iteration number.
-    /// The tweaked spend private key is then used to derive a new public key.
-    ///
-    /// The function checks if this public key matches any of the public keys to check. If a match is found,
-    /// the tweaked private key is added to the value to return.
-    ///
-    /// If we have registered labels then we compute the diff between the new public key and each output, and see if
-    /// any of those diffs match one of the labels. If that's the case we tweak the new private key with the label
-    /// and add it the our return value.
-    ///
-    /// The function stops iterating when one loop doesn't found any match with the public keys to scan.
+    /// Scans a transaction for outputs belonging to us.
     ///
     /// # Arguments
     ///
-    /// * `ecdh_shared_secret` -  A reference to a 33 byte array computed shared secret, the result of `outpoints_hash * b_{scan} * A`.
-    /// * `pubkeys_to_check` - A `HashSet` of public keys to check for matches with the public key derived from the tweaked private key.
+    /// * `ecdh_shared_secret` -  A reference to a 33 byte array computed shared secret for this transaction, the result of `outpoints_hash * b_{scan} * A`.
+    /// * `pubkeys_to_check` - A `HashSet` of public keys of all (unspent) taproot output of the transaction.
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `Result` wrapping a `HashMap` of labels and a list of private keys (since the same label can have been paid many outputs in one transaction). If the length of the `HashMap` is 0, it simply means there are no outputs that belongs to us in this transaction.
+    /// If successful, the function returns a `Result` wrapping a `HashMap` of labels to a set of private keys (since the same label may have been paid multiple times in one transaction). A resulting `HashMap` of length 0 implies none of the outputs are owned by us.
     ///
     /// # Errors
     ///
     /// This function will return an error if:
     ///
-    /// * One of the public keys to scan can't be parsed into a valid x only public key.
-    /// * The computation of the difference between a public key to check and the new public key fails.
-    pub fn scan_for_outputs(
+    /// * One of the public keys to scan can't be parsed into a valid x-only public key.
+    /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
+    pub fn scan_transaction(
         &self,
         ecdh_shared_secret: &[u8; 33],
         pubkeys_to_check: Vec<XOnlyPublicKey>,
-    ) -> Result<HashMap<String, Vec<String>>> {
+    ) -> Result<HashMap<Label, HashSet<SecretKey>>> {
         let secp = secp256k1::Secp256k1::new();
+        let B_spend = &self.spend_privkey.public_key(&secp);
 
-        fn insert_new_key(
-            mut new_privkey: SecretKey,
-            my_outputs: &mut HashMap<String, Vec<String>>,
-            label: Option<&Label>,
-        ) -> Result<SecretKey> {
-            let label: &Label = match label {
-                Some(l) => {
-                    new_privkey = new_privkey.add_tweak(l.as_inner())?;
-                    l
-                }
-                None => &NULL_LABEL,
-            };
-
-            my_outputs
-                .entry(label.as_string())
-                .or_insert_with(Vec::new)
-                .push(hex::encode(&new_privkey.secret_bytes()));
-
-            Ok(new_privkey)
-        }
-
-        let mut my_outputs: HashMap<String, Vec<String>> = HashMap::new();
+        let mut my_outputs: HashMap<Label, HashSet<SecretKey>> = HashMap::new();
         let mut n: u32 = 0;
         while my_outputs.len() == n as usize {
             let t_n: Scalar = calculate_t_n(&ecdh_shared_secret, n)?;
-            let P_n: PublicKey = calculate_P_n(&self.spend_privkey.public_key(&secp), t_n)?;
+            let P_n: PublicKey = calculate_P_n(&B_spend, t_n)?;
             if pubkeys_to_check
                 .iter()
                 .any(|p| p.eq(&P_n.x_only_public_key().0))
             {
                 insert_new_key(self.spend_privkey.add_tweak(&t_n)?, &mut my_outputs, None)?;
             } else if !self.labels.is_empty() {
-                // We need to take the negation of P_n, adding it is equivalent to substracting P_n
-                let P_n_negated: PublicKey = P_n.negate(&secp);
-                // then we substract P_n from each outputs to check and see if match a public key in our label list
-                pubkeys_to_check.iter().find_map(|p| {
+                // We subtract P_n from each outputs to check and see if match a public key in our label list
+                'outer: for p in &pubkeys_to_check {
                     let even_output = p.public_key(Parity::Even);
                     let odd_output = p.public_key(Parity::Odd);
-                    let even_diff = even_output.combine(&P_n_negated).ok()?;
-                    let odd_diff = odd_output.combine(&P_n_negated).ok()?;
+                    let even_diff = even_output.combine(&P_n.negate(&secp))?;
+                    let odd_diff = odd_output.combine(&P_n.negate(&secp))?;
 
                     for diff in vec![even_diff, odd_diff] {
-                        if let Some(hit) = self.labels.get(&diff) {
+                        if let Some(label) = self.labels.get(&diff) {
                             insert_new_key(
-                                self.spend_privkey.add_tweak(&t_n).ok()?,
+                                self.spend_privkey.add_tweak(&t_n)?,
                                 &mut my_outputs,
-                                Some(hit),
-                            )
-                            .ok()?;
-                            return Some(());
+                                Some(label),
+                            )?;
+                            break 'outer;
                         }
                     }
-                    None
-                });
+                }
             }
             n += 1;
         }

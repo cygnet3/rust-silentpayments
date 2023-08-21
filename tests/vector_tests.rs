@@ -126,16 +126,16 @@ mod tests {
                 .calculate_shared_secret(A_sum_times_outpoints_hash)
                 .unwrap();
 
-            let add_to_wallet = sp_receiver
-                .scan_for_outputs(&ecdh_shared_secret, outputs_to_check)
+            let scanned_outputs_received = sp_receiver
+                .scan_transaction(&ecdh_shared_secret, outputs_to_check)
                 .unwrap();
 
-            let privkeys: Vec<SecretKey> = add_to_wallet
-                .iter()
+            let privkeys: Vec<SecretKey> = scanned_outputs_received
+                .into_iter()
                 .flat_map(|(_, list)| {
                     let mut ret: Vec<SecretKey> = vec![];
                     for l in list {
-                        ret.push(SecretKey::from_str(l).unwrap());
+                        ret.push(l);
                     }
                     ret
                 })
