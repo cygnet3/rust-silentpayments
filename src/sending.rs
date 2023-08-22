@@ -103,7 +103,7 @@ impl Into<String> for SilentPaymentAddress {
 /// # Arguments
 ///
 /// * `recipients` - A `Vec` of silent payment addresses to be paid.
-/// * `ecdh_shared_secrets` - A HashMap that maps every scan key to a shared secret created with this scan key.
+/// * `ecdh_shared_secrets` - A HashMap that maps every scan key (representing a recipient) to a shared secret. This shared secret is created using the scan key, along with the private keys of the outputs to spend. This library has no access to these private keys, so we expect the computed shared secret instead.
 ///
 /// # Returns
 ///
@@ -115,7 +115,7 @@ impl Into<String> for SilentPaymentAddress {
 /// This function will return an error if:
 ///
 /// * The recipients Vec contains a silent payment address with an incorrect format.
-/// * The ecdh_shared_secrets does not contain a secret for every B_scan that are being paid to.
+/// * The ecdh_shared_secrets does not contain a secret for every B_scan that is being paid to.
 /// * Edge cases are hit during elliptic curve computation (extremely unlikely).
 pub fn generate_recipient_pubkeys(
     recipients: Vec<String>,
@@ -167,6 +167,21 @@ pub fn generate_recipient_pubkeys(
     Ok(result)
 }
 
+/// Helper function to retrieve the scanning public key from a bech32m-encoded silent payment address.
+///
+/// # Arguments
+///
+/// * `silent_payment_address` - The bech32m-encoded silent payment address to be decoded.
+///
+/// # Returns
+///
+/// If successful, the function returns a `Result` wrapping a `PublicKey`, the scanning public key.
+///
+/// # Errors
+///
+/// This function will return an error if:
+///
+/// * The silent payment address has an incorrent format. 
 pub fn decode_scan_pubkey(silent_payment_address: String) -> Result<PublicKey> {
     let address: SilentPaymentAddress = silent_payment_address.try_into()?;
     Ok(address.scan_pubkey)
