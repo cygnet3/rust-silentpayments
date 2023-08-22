@@ -13,7 +13,7 @@ use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey}
 
 use crate::Result;
 
-pub(crate) const NULL_LABEL: Label = Label { s: Scalar::ZERO };
+pub const NULL_LABEL: Label = Label { s: Scalar::ZERO };
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct Label {

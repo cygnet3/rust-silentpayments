@@ -1,7 +1,13 @@
 [package]
 name = "silentpayments"
 version = "0.1.0"
+authors = "cygnet <cygnet3@proton.me>"
 edition = "2021"
+description = "A library to add silent payments support to wallets"
+homepage = "https://github.com/cygnet3/rust-silentpayments"
+repository = "https://github.com/cygnet3/rust-silentpayments"
+keywords = ["bitcoin", "secp256k1"]
+readme = "README.md"
 
 [lib]
 name = "silentpayments"
