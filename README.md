@@ -9,7 +9,7 @@ Even though it passes the tests provided in the official silent payments BIP,
 Review it carefully before this with mainnet funds.**
 
 This library supports creating and sending to silent payment addresses,
-building on [`rust-secp256k1`](https://docs.rs/secp256k1/latest/secp256k1)
+building on [`secp256k1`](https://docs.rs/secp256k1/latest/secp256k1)
 `PublicKey` and `SecretKey` structs for the interface.
 
 There are two parts to this library: a sender part and a recipient part.
