@@ -9,10 +9,12 @@ mod tests {
     };
 
     use secp256k1::{PublicKey, SecretKey};
-    use silentpayments::{
-        receiving::SilentPayment,
-        sending::{decode_scan_pubkey, generate_recipient_pubkeys},
-    };
+
+    #[cfg(feature = "receiving")]
+    use silentpayments::receiving::SilentPayment;
+
+    #[cfg(feature = "sending")]
+    use silentpayments::sending::{decode_scan_pubkey, generate_recipient_pubkeys};
 
     use crate::common::{
         structs::TestData,
@@ -37,6 +39,8 @@ mod tests {
     fn process_test_case(test_case: TestData) {
         let mut sending_outputs: HashSet<String> = HashSet::new();
         eprintln!("test.comment = {:?}", test_case.comment);
+
+        #[cfg(feature = "sending")]
         for sendingtest in test_case.sending {
             let given = sendingtest.given;
 
@@ -75,12 +79,14 @@ mod tests {
             assert_eq!(sending_outputs, expected_output_addresses);
         }
 
+        #[cfg(feature = "receiving")]
         for receivingtest in test_case.receiving {
             let given = receivingtest.given;
             let mut expected = receivingtest.expected;
 
             let receiving_outputs: HashSet<String> = given.outputs.iter().cloned().collect();
 
+            #[cfg(feature = "sending")]
             // assert that the generated sending outputs are a subset
             // of the expected receiving outputs
             // i.e. all the generated outputs are present

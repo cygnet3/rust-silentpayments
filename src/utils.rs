@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{
-    receiving::{Label, NULL_LABEL},
-    Error, Result,
-};
+#[cfg(feature = "receiving")]
+use crate::receiving::{Label, NULL_LABEL};
+
+use crate::{Error, Result};
 use secp256k1::{
     hashes::{sha256, Hash},
     PublicKey, Scalar, Secp256k1, SecretKey,
@@ -33,6 +33,7 @@ pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<Sca
     Ok(Scalar::from_be_bytes(sha256(&bytes))?)
 }
 
+#[cfg(feature = "receiving")]
 pub(crate) fn insert_new_key(
     mut new_privkey: SecretKey,
     my_outputs: &mut HashMap<Label, HashSet<SecretKey>>,
