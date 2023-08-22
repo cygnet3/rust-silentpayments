@@ -14,6 +14,11 @@ readme = "README.md"
 name = "silentpayments"
 crate-type = ["lib"]
 
+[features]
+default = ["sending", "receiving"]
+sending = []
+receiving = []
+
 [dependencies]
 # bdk = {version = "0.20.0", features= ["all-keys"] }
 secp256k1 = {version = "0.24", features = ["bitcoin-hashes-std"] }
