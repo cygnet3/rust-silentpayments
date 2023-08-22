@@ -7,12 +7,11 @@ use std::{
 
 use secp256k1::{
     hashes::{sha256, Hash},
-    PublicKey, Scalar, SecretKey, XOnlyPublicKey,
+    Message, PublicKey, Scalar, SecretKey, XOnlyPublicKey,
 };
 use serde_json::from_str;
-use silentpayments::structs::Outpoint;
 
-use super::structs::TestData;
+use super::structs::{Outpoint, OutputWithSignature, TestData};
 
 pub fn read_file() -> Vec<TestData> {
     let mut file = File::open("tests/resources/send_and_receive_test_vectors.json").unwrap();
@@ -94,7 +93,24 @@ pub fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> SecretKey {
     result
 }
 
-pub fn compute_ecdh_shared_secret(
+pub fn get_A_sum_public_keys(input: &Vec<PublicKey>) -> PublicKey {
+    let keys_refs: &Vec<&PublicKey> = &input.iter().collect();
+
+    PublicKey::combine_keys(keys_refs).unwrap()
+}
+
+pub fn calculate_tweak_data_for_recipient(
+    input_pub_keys: &Vec<PublicKey>,
+    outpoints: &HashSet<Outpoint>,
+) -> PublicKey {
+    let secp = secp256k1::Secp256k1::new();
+    let A_sum = get_A_sum_public_keys(input_pub_keys);
+    let outpoints_hash = hash_outpoints(outpoints);
+
+    A_sum.mul_tweak(&secp, &outpoints_hash).unwrap()
+}
+
+pub fn sender_calculate_shared_secret(
     a_sum: SecretKey,
     B_scan: PublicKey,
     outpoints_hash: Scalar,
@@ -105,7 +121,7 @@ pub fn compute_ecdh_shared_secret(
     diffie_hellman.mul_tweak(&secp, &outpoints_hash).unwrap()
 }
 
-pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> [u8; 32] {
+pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> Scalar {
     let mut outpoints: Vec<Vec<u8>> = vec![];
 
     for outpoint in sending_data {
@@ -126,5 +142,37 @@ pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> [u8; 32] {
         engine.write_all(&v).unwrap();
     }
 
-    sha256::Hash::from_engine(engine).into_inner()
+    Scalar::from_be_bytes(sha256::Hash::from_engine(engine).into_inner()).unwrap()
+}
+
+pub fn verify_and_calculate_signatures(
+    privkeys: Vec<SecretKey>,
+    b_spend: SecretKey,
+) -> Result<Vec<OutputWithSignature>, secp256k1::Error> {
+    let secp = secp256k1::Secp256k1::new();
+
+    let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"message");
+    let aux = secp256k1::hashes::sha256::Hash::hash(b"random auxiliary data").into_inner();
+
+    let mut res: Vec<OutputWithSignature> = vec![];
+    for k in privkeys {
+        let P = k.x_only_public_key(&secp).0;
+
+        // Add the negated b_spend to get only the tweak
+        let tweak = k.add_tweak(&Scalar::from(b_spend.negate()))?;
+
+        // Sign the message with schnorr
+        let sig = secp.sign_schnorr_with_aux_rand(&msg, &k.keypair(&secp), &aux);
+
+        // Verify the message is correct
+        secp.verify_schnorr(&sig, &msg, &P)?;
+
+        // Push result to list
+        res.push(OutputWithSignature {
+            pub_key: P.to_string(),
+            priv_key_tweak: hex::encode(tweak.secret_bytes()),
+            signature: sig.to_string(),
+        });
+    }
+    Ok(res)
 }

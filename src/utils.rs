@@ -1,39 +1,59 @@
-use std::{collections::HashSet, io::Write};
+use std::collections::{HashMap, HashSet};
 
-use secp256k1::hashes::{sha256, Hash};
+use crate::{
+    receiving::{Label, NULL_LABEL},
+    Error, Result,
+};
+use secp256k1::{
+    hashes::{sha256, Hash},
+    PublicKey, Scalar, Secp256k1, SecretKey,
+};
 
-use crate::{error::Error, structs::Outpoint};
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-pub fn sha256(message: &[u8]) -> [u8; 32] {
+pub(crate) fn sha256(message: &[u8]) -> [u8; 32] {
     sha256::Hash::hash(message).into_inner()
 }
 
-pub fn ser_uint32(u: u32) -> Vec<u8> {
+pub(crate) fn ser_uint32(u: u32) -> Vec<u8> {
     u.to_be_bytes().into()
 }
 
-pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> Result<[u8; 32]> {
-    let mut outpoints: Vec<Vec<u8>> = vec![];
+pub(crate) fn calculate_P_n(B_spend: &PublicKey, t_n: Scalar) -> Result<PublicKey> {
+    let secp = Secp256k1::new();
 
-    for outpoint in sending_data {
-        let txid = outpoint.txid;
-        let vout = outpoint.vout;
+    let P_n = B_spend.add_exp_tweak(&secp, &t_n)?;
 
-        let mut bytes: Vec<u8> = Vec::new();
-        bytes.extend_from_slice(&txid);
-        bytes.reverse();
-        bytes.extend_from_slice(&vout.to_le_bytes());
-        outpoints.push(bytes);
+    Ok(P_n)
+}
+
+pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<Scalar> {
+    let mut bytes: Vec<u8> = Vec::new();
+    bytes.extend_from_slice(ecdh_shared_secret);
+    bytes.extend_from_slice(&ser_uint32(n));
+
+    Ok(Scalar::from_be_bytes(sha256(&bytes))?)
+}
+
+pub(crate) fn insert_new_key(
+    mut new_privkey: SecretKey,
+    my_outputs: &mut HashMap<Label, HashSet<SecretKey>>,
+    label: Option<&Label>,
+) -> Result<()> {
+    let label: &Label = match label {
+        Some(l) => {
+            new_privkey = new_privkey.add_tweak(l.as_inner())?;
+            l
+        }
+        None => &NULL_LABEL,
+    };
+
+    let res = my_outputs
+        .entry(label.to_owned())
+        .or_insert_with(HashSet::new)
+        .insert(new_privkey);
+
+    if res {
+        Ok(())
+    } else {
+        Err(Error::GenericError("Duplicate key found".to_owned()))
     }
-    outpoints.sort();
-
-    let mut engine = sha256::HashEngine::default();
-
-    for v in outpoints {
-        engine.write_all(&v).unwrap();
-    }
-
-    Ok(sha256::Hash::from_engine(engine).into_inner())
 }

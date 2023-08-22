@@ -1,8 +1,6 @@
 #![allow(non_snake_case)]
 mod common;
 
-use silentpayments::receiving;
-
 #[cfg(test)]
 mod tests {
     use std::{
@@ -10,23 +8,22 @@ mod tests {
         str::FromStr,
     };
 
-    use secp256k1::{PublicKey, Scalar, SecretKey};
-    use silentpayments::sending::{decode_scan_pubkey, generate_recipient_pubkeys};
+    use secp256k1::{PublicKey, SecretKey};
+    use silentpayments::{
+        receiving::SilentPayment,
+        sending::{decode_scan_pubkey, generate_recipient_pubkeys},
+    };
 
-    use crate::{
-        common::{
-            structs::TestData,
-            utils::{
-                self, compute_ecdh_shared_secret, decode_input_pub_keys, decode_outpoints,
-                decode_outputs_to_check, decode_priv_keys, decode_recipients,
-                get_a_sum_secret_keys, hash_outpoints,
-            },
-        },
-        receiving::{
-            get_A_sum_public_keys, get_receiving_addresses, scanning,
-            verify_and_calculate_signatures,
+    use crate::common::{
+        structs::TestData,
+        utils::{
+            self, calculate_tweak_data_for_recipient, decode_input_pub_keys, decode_outpoints,
+            decode_outputs_to_check, decode_priv_keys, decode_recipients, get_a_sum_secret_keys,
+            hash_outpoints, sender_calculate_shared_secret, verify_and_calculate_signatures,
         },
     };
+
+    const IS_TESTNET: bool = false;
 
     #[test]
     fn test_with_test_vectors() {
@@ -52,7 +49,7 @@ mod tests {
 
             let outpoints = decode_outpoints(&given.outpoints);
 
-            let outpoints_hash = Scalar::from_be_bytes(hash_outpoints(&outpoints)).unwrap();
+            let outpoints_hash = hash_outpoints(&outpoints);
 
             let silent_addresses = decode_recipients(&given.recipients);
 
@@ -61,7 +58,8 @@ mod tests {
             let mut ecdh_shared_secrets: HashMap<PublicKey, PublicKey> = HashMap::new();
             for addr in &silent_addresses {
                 let B_scan = decode_scan_pubkey(addr.to_owned()).unwrap();
-                let ecdh_shared_secret = compute_ecdh_shared_secret(a_sum, B_scan, outpoints_hash);
+                let ecdh_shared_secret =
+                    sender_calculate_shared_secret(a_sum, B_scan, outpoints_hash);
                 ecdh_shared_secrets.insert(B_scan, ecdh_shared_secret);
             }
             let outputs =
@@ -77,9 +75,9 @@ mod tests {
             assert_eq!(sending_outputs, expected_output_addresses);
         }
 
-        for receivingtest in &test_case.receiving {
-            let given = &receivingtest.given;
-            let expected = &receivingtest.expected;
+        for receivingtest in test_case.receiving {
+            let given = receivingtest.given;
+            let mut expected = receivingtest.expected;
 
             let receiving_outputs: HashSet<String> = given.outputs.iter().cloned().collect();
 
@@ -90,12 +88,29 @@ mod tests {
 
             let b_scan = SecretKey::from_str(&given.scan_priv_key).unwrap();
             let b_spend = SecretKey::from_str(&given.spend_priv_key).unwrap();
-            let secp = secp256k1::Secp256k1::new();
-            let B_scan: PublicKey = b_scan.public_key(&secp);
-            let B_spend: PublicKey = b_spend.public_key(&secp);
 
-            let receiving_addresses =
-                get_receiving_addresses(B_scan, B_spend, &given.labels).unwrap();
+            let mut sp_receiver = SilentPayment::new(0, b_scan, b_spend, IS_TESTNET).unwrap();
+
+            let outputs_to_check = decode_outputs_to_check(&given.outputs);
+
+            let outpoints = decode_outpoints(&given.outpoints);
+
+            let input_pub_keys = decode_input_pub_keys(&given.input_pub_keys);
+
+            for (_, label) in &given.labels {
+                let label = label[..].try_into().unwrap();
+                sp_receiver.add_label(label).unwrap();
+            }
+
+            let mut receiving_addresses: HashSet<String> = HashSet::new();
+            // get receiving address for no label
+            receiving_addresses.insert(sp_receiver.get_receiving_address(None).unwrap());
+
+            // get receiving addresses for every label
+            let labels = sp_receiver.list_labels();
+            for label in &labels {
+                receiving_addresses.insert(sp_receiver.get_receiving_address(Some(label)).unwrap());
+            }
 
             let set1: HashSet<_> = receiving_addresses.iter().collect();
             let set2: HashSet<_> = expected.addresses.iter().collect();
@@ -104,24 +119,30 @@ mod tests {
             // to the expected addresses
             assert_eq!(set1, set2);
 
-            // can be even or odd !
-            let outputs_to_check = decode_outputs_to_check(&given.outputs);
+            let tweak_data = calculate_tweak_data_for_recipient(&input_pub_keys, &outpoints);
 
-            let outpoints = decode_outpoints(&given.outpoints);
+            let scanned_outputs_received = sp_receiver
+                .scan_transaction(&tweak_data, outputs_to_check)
+                .unwrap();
 
-            let input_pub_keys = decode_input_pub_keys(&given.input_pub_keys);
+            let privkeys: Vec<SecretKey> = scanned_outputs_received
+                .into_iter()
+                .flat_map(|(_, list)| {
+                    let mut ret: Vec<SecretKey> = vec![];
+                    for l in list {
+                        ret.push(l);
+                    }
+                    ret
+                })
+                .collect();
 
-            let A_sum = get_A_sum_public_keys(&input_pub_keys).unwrap();
+            let mut res = verify_and_calculate_signatures(privkeys, b_spend).unwrap();
 
-            let labels = match &given.labels.len() {
-                0 => None,
-                _ => Some(&given.labels),
-            };
+            res.sort_by_key(|output| output.pub_key.clone());
+            expected
+                .outputs
+                .sort_by_key(|output| output.pub_key.clone());
 
-            let mut add_to_wallet =
-                scanning(b_scan, B_spend, A_sum, outpoints, outputs_to_check, labels).unwrap();
-
-            let res = verify_and_calculate_signatures(&mut add_to_wallet, b_spend).unwrap();
             assert_eq!(res, expected.outputs);
         }
     }

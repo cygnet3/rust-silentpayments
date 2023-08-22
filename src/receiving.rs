@@ -1,212 +1,299 @@
-use bech32::ToBase32;
-
-use secp256k1::{hashes::Hash, Message, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::{
     collections::{HashMap, HashSet},
-    str::FromStr,
+    fmt,
+    hash::{Hash, Hasher},
 };
 
 use crate::{
-    error::Error,
-    structs::{Outpoint, OutputWithSignature, ScannedOutput},
-    utils::{hash_outpoints, ser_uint32, Result},
+    utils::{calculate_P_n, calculate_t_n, insert_new_key},
+    Error,
 };
+use bech32::ToBase32;
+use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 
-pub fn get_receiving_addresses(
-    B_scan: PublicKey,
-    B_spend: PublicKey,
-    labels: &HashMap<String, String>,
-) -> Result<Vec<String>> {
-    let mut receiving_addresses: Vec<String> = vec![];
-    receiving_addresses.push(encode_silent_payment_address(B_scan, B_spend, None, None)?);
-    for (_, label) in labels {
-        receiving_addresses.push(create_labeled_silent_payment_address(
-            B_scan, B_spend, label, None, None,
-        )?);
+use crate::Result;
+
+pub(crate) const NULL_LABEL: Label = Label { s: Scalar::ZERO };
+
+#[derive(Eq, PartialEq, Clone)]
+pub struct Label {
+    s: Scalar,
+}
+
+impl Label {
+    pub fn into_inner(self) -> Scalar {
+        self.s
     }
 
-    Ok(receiving_addresses)
+    pub fn as_inner(&self) -> &Scalar {
+        &self.s
+    }
+
+    pub fn as_string(&self) -> String {
+        hex::encode(self.as_inner().to_be_bytes())
+    }
 }
 
-pub fn get_A_sum_public_keys(
-    input: &Vec<PublicKey>,
-) -> std::result::Result<PublicKey, secp256k1::Error> {
-    let keys_refs: &Vec<&PublicKey> = &input.iter().collect();
-
-    PublicKey::combine_keys(keys_refs)
+impl fmt::Debug for Label {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.as_string())
+    }
 }
 
-fn encode_silent_payment_address(
-    B_scan: PublicKey,
-    B_m: PublicKey,
-    hrp: Option<&str>,
-    version: Option<u8>,
-) -> Result<String> {
-    let hrp = hrp.unwrap_or("sp");
-    let version = bech32::u5::try_from_u8(version.unwrap_or(0))?;
-
-    let B_scan_bytes = B_scan.serialize();
-    let B_m_bytes = B_m.serialize();
-
-    let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
-
-    data.insert(0, version);
-
-    Ok(bech32::encode(hrp, data, bech32::Variant::Bech32m)?)
+impl Hash for Label {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let bytes = self.s.to_be_bytes();
+        bytes.hash(state);
+    }
 }
 
-fn create_labeled_silent_payment_address(
-    B_scan: PublicKey,
-    B_spend: PublicKey,
-    m: &String,
-    hrp: Option<&str>,
-    version: Option<u8>,
-) -> Result<String> {
-    let bytes: [u8; 32] = hex::decode(m)?
-        .as_slice()
-        .try_into()
-        .map_err(|_| Error::GenericError("Wrong byte length".to_owned()))?;
-
-    let scalar = Scalar::from_be_bytes(bytes)?;
-    let secp = Secp256k1::new();
-    let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())?.public_key(&secp);
-    let intermediate = G.mul_tweak(&secp, &scalar)?;
-    let B_m = intermediate.combine(&B_spend)?;
-
-    encode_silent_payment_address(B_scan, B_m, hrp, version)
+impl From<Scalar> for Label {
+    fn from(s: Scalar) -> Self {
+        Label { s }
+    }
 }
 
-fn calculate_P_n(B_spend: &PublicKey, t_n: [u8; 32]) -> Result<PublicKey> {
-    let secp = Secp256k1::new();
+impl TryFrom<String> for Label {
+    type Error = Error;
 
-    let G: PublicKey = SecretKey::from_slice(&Scalar::ONE.to_be_bytes())?.public_key(&secp);
-    let intermediate = G.mul_tweak(&secp, &Scalar::from_be_bytes(t_n)?)?;
-    let P_n = intermediate.combine(&B_spend)?;
-
-    Ok(P_n)
+    fn try_from(s: String) -> Result<Label> {
+        Label::try_from(&s[..])
+    }
 }
 
-fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> [u8; 32] {
-    let mut bytes: Vec<u8> = Vec::new();
-    bytes.extend_from_slice(ecdh_shared_secret);
-    bytes.extend_from_slice(&ser_uint32(n));
-    crate::utils::sha256(&bytes)
+impl TryFrom<&str> for Label {
+    type Error = Error;
+
+    fn try_from(s: &str) -> Result<Label> {
+        // Is it valid hex?
+        let bytes = hex::decode(s)?;
+        // Is it 32B long?
+        let bytes: [u8; 32] = bytes.try_into().map_err(|_| {
+            Error::InvalidLabel("Label must be 32 bytes (256 bits) long".to_owned())
+        })?;
+        // Is it on the curve? If yes, push it on our labels list
+        Ok(Label::from(Scalar::from_be_bytes(bytes)?))
+    }
 }
 
-fn calculate_ecdh_secret(
-    A_sum: &PublicKey,
-    b_scan: SecretKey,
-    outpoints_hash: [u8; 32],
-) -> Result<[u8; 33]> {
-    let secp = Secp256k1::new();
-
-    let intermediate = A_sum.mul_tweak(&secp, &b_scan.into())?;
-    let scalar = Scalar::from_be_bytes(outpoints_hash)?;
-    let ecdh_shared_secret = intermediate.mul_tweak(&secp, &scalar)?.serialize();
-
-    Ok(ecdh_shared_secret)
+impl From<Label> for Scalar {
+    fn from(l: Label) -> Self {
+        l.s
+    }
 }
 
-pub fn scanning(
-    b_scan: SecretKey,
-    B_spend: PublicKey,
-    A_sum: PublicKey,
-    outpoints: HashSet<Outpoint>,
-    outputs_to_check: Vec<XOnlyPublicKey>,
-    labels: Option<&HashMap<String, String>>,
-) -> Result<Vec<ScannedOutput>> {
-    let secp = secp256k1::Secp256k1::new();
+/// A struct representing a silent payment recipient.
+/// It can be used to scan for transaction outputs belonging to us by using the scan_transaction function.
+/// It internally manages labels, which can be added by using the add_label function.
+#[derive(Debug)]
+pub struct SilentPayment {
+    version: u8,
+    scan_privkey: SecretKey,
+    spend_privkey: SecretKey,
+    labels: HashMap<PublicKey, Label>,
+    is_testnet: bool,
+}
 
-    let outpoints_hash = hash_outpoints(&outpoints)?;
+impl SilentPayment {
+    pub fn new(
+        version: u32,
+        scan_privkey: SecretKey,
+        spend_privkey: SecretKey,
+        is_testnet: bool,
+    ) -> Result<Self> {
+        let labels: HashMap<PublicKey, Label> = HashMap::new();
 
-    let ecdh_shared_secret = calculate_ecdh_secret(&A_sum, b_scan, outpoints_hash)?;
-    let mut n = 0;
-    let mut wallet: Vec<ScannedOutput> = vec![];
+        // Check version, we just refuse anything other than 0 for now
+        if version != 0 {
+            return Err(Error::GenericError(
+                "Can't have other version than 0 for now".to_owned(),
+            ));
+        }
 
-    let mut found = true;
-    while found {
-        found = false;
-        let t_n = calculate_t_n(&ecdh_shared_secret, n);
-        let P_n = calculate_P_n(&B_spend, t_n)?;
-        let (P_n_xonly, _) = P_n.x_only_public_key();
-        if outputs_to_check.iter().any(|&output| output.eq(&P_n_xonly)) {
-            let pub_key = hex::encode(P_n_xonly.serialize());
-            let priv_key_tweak = hex::encode(t_n);
-            wallet.push(ScannedOutput {
-                pub_key,
-                priv_key_tweak,
-            });
-            n += 1;
-            found = true;
-        } else if let Some(labels) = labels {
-            let P_n_negated = P_n.negate(&secp);
-            for output in &outputs_to_check {
-                let output_even = output.public_key(secp256k1::Parity::Even);
-                let output_odd = output.public_key(secp256k1::Parity::Odd);
+        Ok(SilentPayment {
+            version: version as u8,
+            scan_privkey,
+            spend_privkey,
+            labels,
+            is_testnet,
+        })
+    }
 
-                let m_G_sub_even = output_even.combine(&P_n_negated)?;
-                let m_G_sub_odd = output_odd.combine(&P_n_negated)?;
-                let keys: Vec<PublicKey> = vec![m_G_sub_even, m_G_sub_odd];
-                for labelkeystr in labels.keys() {
-                    let labelkey = PublicKey::from_str(labelkeystr)?;
-                    if keys.iter().any(|x| x.eq(&labelkey)) {
-                        let P_nm = hex::encode(output.serialize());
-                        let label = labels.get(labelkeystr).unwrap();
-                        let label_bytes = hex::decode(label)?
-                            .as_slice()
-                            .try_into()
-                            .map_err(|_| Error::GenericError("Wrong byte length".to_owned()))?;
-                        let label_scalar = Scalar::from_be_bytes(label_bytes)?;
-                        let t_n_as_secret_key = SecretKey::from_slice(&t_n)?;
-                        let priv_key_tweak =
-                            hex::encode(t_n_as_secret_key.add_tweak(&label_scalar)?.secret_bytes());
-                        wallet.push(ScannedOutput {
-                            pub_key: P_nm,
-                            priv_key_tweak,
-                        });
-                        n += 1;
-                        found = true;
+    /// Takes a Label and adds it to the list of labels that this recipient uses.
+    /// Returns a bool on success, `true` if the label was new, `false` if it already existed in our list.
+    pub fn add_label(&mut self, label: Label) -> Result<bool> {
+        let secp = Secp256k1::new();
+
+        let secret = SecretKey::from_slice(&label.as_inner().to_be_bytes())?;
+        let old_value = self.labels.insert(secret.public_key(&secp), label);
+        Ok(old_value.is_none())
+    }
+
+    /// List all currently known labels used by this recipient.
+    pub fn list_labels(&self) -> HashSet<Label> {
+        self.labels.values().cloned().collect()
+    }
+
+    /// Get the bech32m-encoded silent payment address, optionally for a specific label.
+    ///
+    /// # Arguments
+    ///
+    /// * `label` - An `Option` that wraps a reference to a Label. If the Option is None, then no label is being used.
+    ///
+    /// # Returns
+    ///
+    /// If successful, the function returns a `Result` wrapping a String, which is the bech32m encoded silent payment address.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    ///
+    /// * If the label is not known for this recipient.
+    /// * If key addition results in an invalid key.
+    pub fn get_receiving_address(&mut self, label: Option<&Label>) -> Result<String> {
+        let secp = Secp256k1::new();
+        let base_spend_key = self.spend_privkey;
+        let b_m = match label {
+            Some(label) => {
+                if self.labels.values().any(|l| l.eq(label)) {
+                    base_spend_key.add_tweak(label.as_inner())?
+                } else {
+                    return Err(Error::InvalidLabel("Label not known".to_owned()));
+                }
+            }
+            None => base_spend_key,
+        };
+
+        Ok(self.encode_silent_payment_address(b_m.public_key(&secp)))
+    }
+
+    /// Scans a transaction for outputs belonging to us.
+    ///
+    /// # Arguments
+    ///
+    /// * `tweak_data` -  The tweak data for the transaction as a PublicKey, the result of elliptic-curve multiplication of `outpoints_hash * A`.
+    /// * `pubkeys_to_check` - A `HashSet` of public keys of all (unspent) taproot output of the transaction.
+    ///
+    /// # Returns
+    ///
+    /// If successful, the function returns a `Result` wrapping a `HashMap` of labels to a set of private keys (since the same label may have been paid multiple times in one transaction). A resulting `HashMap` of length 0 implies none of the outputs are owned by us.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    ///
+    /// * One of the public keys to scan can't be parsed into a valid x-only public key.
+    /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
+    pub fn scan_transaction(
+        &self,
+        tweak_data: &PublicKey,
+        pubkeys_to_check: Vec<XOnlyPublicKey>,
+    ) -> Result<HashMap<Label, HashSet<SecretKey>>> {
+        let secp = secp256k1::Secp256k1::new();
+        let B_spend = &self.spend_privkey.public_key(&secp);
+        let ecdh_shared_secret = self.calculate_shared_secret(tweak_data)?;
+
+        let mut my_outputs: HashMap<Label, HashSet<SecretKey>> = HashMap::new();
+        let mut n: u32 = 0;
+        while my_outputs.len() == n as usize {
+            let t_n: Scalar = calculate_t_n(&ecdh_shared_secret, n)?;
+            let P_n: PublicKey = calculate_P_n(&B_spend, t_n)?;
+            if pubkeys_to_check
+                .iter()
+                .any(|p| p.eq(&P_n.x_only_public_key().0))
+            {
+                insert_new_key(self.spend_privkey.add_tweak(&t_n)?, &mut my_outputs, None)?;
+            } else if !self.labels.is_empty() {
+                // We subtract P_n from each outputs to check and see if match a public key in our label list
+                'outer: for p in &pubkeys_to_check {
+                    let even_output = p.public_key(Parity::Even);
+                    let odd_output = p.public_key(Parity::Odd);
+                    let even_diff = even_output.combine(&P_n.negate(&secp))?;
+                    let odd_diff = odd_output.combine(&P_n.negate(&secp))?;
+
+                    for diff in vec![even_diff, odd_diff] {
+                        if let Some(label) = self.labels.get(&diff) {
+                            insert_new_key(
+                                self.spend_privkey.add_tweak(&t_n)?,
+                                &mut my_outputs,
+                                Some(label),
+                            )?;
+                            break 'outer;
+                        }
                     }
                 }
             }
+            n += 1;
         }
+        Ok(my_outputs)
     }
-    Ok(wallet)
+
+    /// Helper function that can be used to calculate the elliptic curce shared secret.
+    ///
+    /// # Arguments
+    ///
+    /// * `tweak_data` -  The tweak data given as a PublicKey, the result of elliptic-curve multiplication of the outpoints_hash and `A_sum` (the sum of all input public keys).
+    ///
+    /// # Returns
+    ///
+    /// If successful, the function returns a `Result` wrapping an 33-byte array, which is the shared secret that only the sender and the recipient of a silent payment can derive. This result can be used in the scan_for_outputs function.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    ///
+    /// * If key multiplication with the scan private key returns an invalid result.
+    fn calculate_shared_secret(&self, tweak_data: &PublicKey) -> Result<[u8; 33]> {
+        let secp = Secp256k1::new();
+
+        let ecdh_shared_secret = tweak_data
+            .mul_tweak(&secp, &self.scan_privkey.into())?
+            .serialize();
+
+        Ok(ecdh_shared_secret)
+    }
+
+    fn encode_silent_payment_address(&self, m_pubkey: PublicKey) -> String {
+        let hrp = match self.is_testnet {
+            false => "sp",
+            true => "tsp",
+        };
+
+        let secp = Secp256k1::new();
+        let version = bech32::u5::try_from_u8(self.version).unwrap();
+
+        let B_scan_bytes = self.scan_privkey.public_key(&secp).serialize();
+        let B_m_bytes = m_pubkey.serialize();
+
+        let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
+
+        data.insert(0, version);
+
+        bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
+    }
 }
 
-pub fn verify_and_calculate_signatures(
-    add_to_wallet: &mut Vec<ScannedOutput>,
-    b_spend: SecretKey,
-) -> Result<Vec<OutputWithSignature>> {
-    let secp = secp256k1::Secp256k1::new();
-    let msg = Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(b"message");
-    let aux = secp256k1::hashes::sha256::Hash::hash(b"random auxiliary data").into_inner();
+#[cfg(test)]
+mod tests {
+    use super::Label;
 
-    let mut res: Vec<OutputWithSignature> = vec![];
-    for output in add_to_wallet {
-        let pubkey = XOnlyPublicKey::from_str(&output.pub_key)?;
-        let tweak: [u8; 32] = hex::decode(&output.priv_key_tweak)?
-            .as_slice()
-            .try_into()
-            .map_err(|_| Error::GenericError("Wrong byte length".to_owned()))?;
-        let scalar = Scalar::from_be_bytes(tweak)?;
-        let mut full_priv_key = b_spend.add_tweak(&scalar)?;
-
-        let (_, parity) = full_priv_key.x_only_public_key(&secp);
-
-        if parity == secp256k1::Parity::Odd {
-            full_priv_key = full_priv_key.negate();
-        }
-
-        let sig = secp.sign_schnorr_with_aux_rand(&msg, &full_priv_key.keypair(&secp), &aux);
-
-        secp.verify_schnorr(&sig, &msg, &pubkey)?;
-
-        res.push(OutputWithSignature {
-            pub_key: output.pub_key.to_string(),
-            priv_key_tweak: output.priv_key_tweak.clone(),
-            signature: sig.to_string(),
-        });
+    #[test]
+    fn string_to_label_success() {
+        let s: String =
+            "8e4bbee712779f746337cadf39e8b1eab8e8869dd40f2e3a7281113e858ffc0b".to_owned();
+        Label::try_from(s).unwrap();
     }
-    Ok(res)
+
+    #[test]
+    fn string_to_label_failure() {
+        // Invalid characters
+        let s: String = "deadbeef?:{+!&".to_owned();
+        Label::try_from(s).unwrap_err();
+        // Invalid length
+        let s: String = "deadbee".to_owned();
+        Label::try_from(s).unwrap_err();
+        // Not 32B
+        let s: String = "deadbeef".to_owned();
+        Label::try_from(s).unwrap_err();
+    }
 }
