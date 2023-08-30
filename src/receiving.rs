@@ -228,6 +228,37 @@ impl SilentPayment {
         Ok(my_outputs)
     }
 
+    /// Get a taproot output from a transaction's tweak data.
+    /// Using the tweak data, this function will calculate the resulting taproot output, given the assumption that this transaction is a payment to us.
+    /// This function can be useful BIP158 block filters, to create script pubkeys to look for.
+    /// Important note: this function does not support labels!
+    ///
+    /// # Arguments
+    ///
+    /// * `tweak_data` -  The tweak data for the transaction as a PublicKey, the result of elliptic-curve multiplication of `outpoints_hash * A`.
+    ///
+    /// # Returns
+    ///
+    /// If successful, the function returns a `Result` wrapping a `XOnlyPublicKey`, which is the calculated taproot output.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    ///
+    /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
+    pub fn get_taproot_output_from_tweak_data(
+        &self,
+        tweak_data: &PublicKey,
+    ) -> Result<XOnlyPublicKey> {
+        let secp = secp256k1::Secp256k1::new();
+        let B_spend = &self.spend_privkey.public_key(&secp);
+        let ecdh_shared_secret = self.calculate_shared_secret(tweak_data)?;
+        let t_n: Scalar = calculate_t_n(&ecdh_shared_secret, 0)?;
+        let P_n: PublicKey = calculate_P_n(&B_spend, t_n)?;
+
+        Ok(P_n.x_only_public_key().0)
+    }
+
     /// Helper function that can be used to calculate the elliptic curce shared secret.
     ///
     /// # Arguments
