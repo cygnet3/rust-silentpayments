@@ -128,7 +128,7 @@ mod tests {
             let tweak_data = calculate_tweak_data_for_recipient(&input_pub_keys, &outpoints);
 
             let scanned_outputs_received = sp_receiver
-                .scan_transaction(&tweak_data, outputs_to_check)
+                .scan_transaction_with_labels(&tweak_data, outputs_to_check)
                 .unwrap();
 
             let privkeys: Vec<SecretKey> = scanned_outputs_received
