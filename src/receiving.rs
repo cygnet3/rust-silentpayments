@@ -184,7 +184,7 @@ impl SilentPayment {
     ///
     /// * One of the public keys to scan can't be parsed into a valid x-only public key.
     /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
-    pub fn scan_transaction(
+    pub fn scan_transaction_with_labels(
         &self,
         tweak_data: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
@@ -226,6 +226,45 @@ impl SilentPayment {
             n += 1;
         }
         Ok(my_outputs)
+    }
+
+    /// Scans a transaction for outputs belonging to us.
+    /// Note: this function is only for wallets that don't use labels!
+    /// If this silent payment wallet uses labels, use `scan_transaction_with_labels` instead.
+    ///
+    /// # Arguments
+    ///
+    /// * `tweak_data` -  The tweak data for the transaction as a PublicKey, the result of elliptic-curve multiplication of `outpoints_hash * A`.
+    /// * `pubkeys_to_check` - A `HashSet` of public keys of all (unspent) taproot output of the transaction.
+    ///
+    /// # Returns
+    ///
+    /// If successful, the function returns a `Result` wrapping a `HashSet` of private keys. A resulting `HashSet` of length 0 implies none of the outputs are owned by us.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    ///
+    /// * One of the public keys to scan can't be parsed into a valid x-only public key.
+    /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
+    pub fn scan_transaction(
+        &self,
+        tweak_data: &PublicKey,
+        pubkeys_to_check: Vec<XOnlyPublicKey>,
+    ) -> Result<HashSet<SecretKey>> {
+        if !self.labels.is_empty() {
+            return Err(Error::GenericError(
+                "This function should only be used by wallets without labels; use scan_transaction_with_labels instead".to_owned(),
+            ));
+        }
+
+        // re-use scan_transaction_with_labels function
+        let mut map = self.scan_transaction_with_labels(tweak_data, pubkeys_to_check)?;
+
+        match map.remove(&NULL_LABEL) {
+            Some(res) => Ok(res),
+            None => Ok(HashSet::new()),
+        }
     }
 
     /// Get a taproot output from a transaction's tweak data.
