@@ -182,7 +182,7 @@ pub fn generate_recipient_pubkeys(
 /// This function will return an error if:
 ///
 /// * The silent payment address has an incorrent format. 
-pub fn decode_scan_pubkey(silent_payment_address: String) -> Result<PublicKey> {
+pub fn decode_scan_pubkey(silent_payment_address: &str) -> Result<PublicKey> {
     let address: SilentPaymentAddress = silent_payment_address.try_into()?;
     Ok(address.scan_pubkey)
 }

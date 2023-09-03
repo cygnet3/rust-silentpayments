@@ -61,7 +61,7 @@ mod tests {
 
             let mut ecdh_shared_secrets: HashMap<PublicKey, PublicKey> = HashMap::new();
             for addr in &silent_addresses {
-                let B_scan = decode_scan_pubkey(addr.to_owned()).unwrap();
+                let B_scan = decode_scan_pubkey(&addr).unwrap();
                 let ecdh_shared_secret =
                     sender_calculate_shared_secret(a_sum, B_scan, outpoints_hash);
                 ecdh_shared_secrets.insert(B_scan, ecdh_shared_secret);
