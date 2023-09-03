@@ -98,7 +98,7 @@ impl Into<String> for SilentPaymentAddress {
     }
 }
 
-/// Create outputs for a given set of silent payment recipients and their corresponding shared secrets.
+/// Create multiple outputs for a given set of silent payment recipients and their corresponding shared secrets.
 ///
 /// # Arguments
 ///
@@ -117,7 +117,7 @@ impl Into<String> for SilentPaymentAddress {
 /// * The recipients Vec contains a silent payment address with an incorrect format.
 /// * The ecdh_shared_secrets does not contain a secret for every B_scan that is being paid to.
 /// * Edge cases are hit during elliptic curve computation (extremely unlikely).
-pub fn generate_recipient_pubkeys(
+pub fn generate_multiple_recipient_pubkeys(
     recipients: Vec<String>,
     ecdh_shared_secrets: HashMap<PublicKey, PublicKey>,
 ) -> Result<HashMap<String, Vec<XOnlyPublicKey>>> {
@@ -165,6 +165,49 @@ pub fn generate_recipient_pubkeys(
         }
     }
     Ok(result)
+}
+
+/// Create output for a single silent payment recipient using a shared secret.
+/// This function is intended for the common use-case of paying a single silent payment address once.
+/// For sending to multiple recipients, or sending to the same recipient multiple times,
+/// use `create_multiple_recipient_pubkeys` instead.
+///
+/// # Arguments
+///
+/// * `recipient` - A `String` of the bech32m-encoded silent payment address to be paid.
+/// * `ecdh_shared_secret` - A `PublicKey` representing the shared secret. This shared secret is created using the scan key, along with the private keys of the outputs to spend. This library has no access to these private keys, so we expect the computed shared secret instead.
+///
+/// # Returns
+///
+/// If successful, the function returns a `Result` wrapping the taproot output as an `XOnlyPublicKey`.
+///
+/// # Errors
+///
+/// This function will return an error if:
+///
+/// * The recipient silent payment address has an incorrect format.
+/// * Edge cases are hit during elliptic curve computation (extremely unlikely).
+pub fn generate_recipient_pubkey(
+    recipient: String,
+    ecdh_shared_secret: PublicKey,
+) -> Result<XOnlyPublicKey> {
+    let scan_pubkey = decode_scan_pubkey(&recipient)?;
+
+    // re-use generate_recipient_pubkeys function logic
+    let recipients = vec![recipient];
+    let mut ecdh_shared_secrets = HashMap::new();
+    ecdh_shared_secrets.insert(scan_pubkey, ecdh_shared_secret);
+    let res = generate_multiple_recipient_pubkeys(recipients, ecdh_shared_secrets)?;
+
+    let output = res
+        .into_values()
+        .next()
+        .expect("Map should always have 1 value");
+
+    Ok(output
+        .into_iter()
+        .next()
+        .expect("Vec should always be of length 1"))
 }
 
 /// Helper function to retrieve the scanning public key from a bech32m-encoded silent payment address.

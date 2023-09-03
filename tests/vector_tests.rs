@@ -14,7 +14,7 @@ mod tests {
     use silentpayments::receiving::SilentPayment;
 
     #[cfg(feature = "sending")]
-    use silentpayments::sending::{decode_scan_pubkey, generate_recipient_pubkeys};
+    use silentpayments::sending::{decode_scan_pubkey, generate_multiple_recipient_pubkeys};
 
     use crate::common::{
         structs::TestData,
@@ -67,7 +67,7 @@ mod tests {
                 ecdh_shared_secrets.insert(B_scan, ecdh_shared_secret);
             }
             let outputs =
-                generate_recipient_pubkeys(silent_addresses, ecdh_shared_secrets).unwrap();
+                generate_multiple_recipient_pubkeys(silent_addresses, ecdh_shared_secrets).unwrap();
 
             for output_pubkeys in &outputs {
                 for pubkey in output_pubkeys.1 {
