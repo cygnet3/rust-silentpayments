@@ -134,11 +134,11 @@ impl SilentPayment {
         self.labels.values().cloned().collect()
     }
 
-    /// Get the bech32m-encoded silent payment address, optionally for a specific label.
+    /// Get the bech32m-encoded silent payment address for a specific label.
     ///
     /// # Arguments
     ///
-    /// * `label` - An `Option` that wraps a reference to a Label. If the Option is None, then no label is being used.
+    /// * `label` - A reference to a Label.
     ///
     /// # Returns
     ///
@@ -150,21 +150,27 @@ impl SilentPayment {
     ///
     /// * If the label is not known for this recipient.
     /// * If key addition results in an invalid key.
-    pub fn get_receiving_address(&self, label: Option<&Label>) -> Result<String> {
+    pub fn get_receiving_address_for_label(&self, label: &Label) -> Result<String> {
         let secp = Secp256k1::new();
-        let base_spend_key = self.spend_privkey;
-        let b_m = match label {
-            Some(label) => {
-                if self.labels.values().any(|l| l.eq(label)) {
-                    base_spend_key.add_tweak(label.as_inner())?
-                } else {
-                    return Err(Error::InvalidLabel("Label not known".to_owned()));
-                }
-            }
-            None => base_spend_key,
+
+        let b_m = if self.labels.values().any(|l| l.eq(label)) {
+            self.spend_privkey.add_tweak(label.as_inner())?
+        } else {
+            return Err(Error::InvalidLabel("Label not known".to_owned()));
         };
 
         Ok(self.encode_silent_payment_address(b_m.public_key(&secp)))
+    }
+
+    /// Get the bech32m-encoded silent payment address.
+    ///
+    /// # Returns
+    ///
+    /// If successful, the function returns a `String`, which is the bech32m encoded silent payment address.
+    pub fn get_receiving_address(&self) -> String {
+        let secp = Secp256k1::new();
+
+        self.encode_silent_payment_address(self.spend_privkey.public_key(&secp))
     }
 
     /// Scans a transaction for outputs belonging to us.

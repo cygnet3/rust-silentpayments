@@ -110,12 +110,13 @@ mod tests {
 
             let mut receiving_addresses: HashSet<String> = HashSet::new();
             // get receiving address for no label
-            receiving_addresses.insert(sp_receiver.get_receiving_address(None).unwrap());
+            receiving_addresses.insert(sp_receiver.get_receiving_address());
 
             // get receiving addresses for every label
             let labels = sp_receiver.list_labels();
             for label in &labels {
-                receiving_addresses.insert(sp_receiver.get_receiving_address(Some(label)).unwrap());
+                receiving_addresses
+                    .insert(sp_receiver.get_receiving_address_for_label(label).unwrap());
             }
 
             let set1: HashSet<_> = receiving_addresses.iter().collect();
