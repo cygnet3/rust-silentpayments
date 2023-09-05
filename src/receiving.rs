@@ -84,9 +84,10 @@ impl From<Label> for Scalar {
 
 /// A struct representing a silent payment recipient.
 /// It can be used to scan for transaction outputs belonging to us by using the scan_transaction function.
-/// It internally manages labels, which can be added by using the add_label function.
+/// It optionally supports labels, which it manages internally.
+/// Labels can be added with the add_label function.
 #[derive(Debug)]
-pub struct SilentPayment {
+pub struct Receiver {
     version: u8,
     scan_privkey: SecretKey,
     spend_privkey: SecretKey,
@@ -94,7 +95,7 @@ pub struct SilentPayment {
     is_testnet: bool,
 }
 
-impl SilentPayment {
+impl Receiver {
     pub fn new(
         version: u32,
         scan_privkey: SecretKey,
@@ -110,7 +111,7 @@ impl SilentPayment {
             ));
         }
 
-        Ok(SilentPayment {
+        Ok(Receiver {
             version: version as u8,
             scan_privkey,
             spend_privkey,
