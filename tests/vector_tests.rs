@@ -11,7 +11,7 @@ mod tests {
     use secp256k1::{PublicKey, SecretKey};
 
     #[cfg(feature = "receiving")]
-    use silentpayments::receiving::SilentPayment;
+    use silentpayments::receiving::Receiver;
 
     #[cfg(feature = "sending")]
     use silentpayments::sending::{decode_scan_pubkey, generate_multiple_recipient_pubkeys};
@@ -95,7 +95,7 @@ mod tests {
             let b_scan = SecretKey::from_str(&given.scan_priv_key).unwrap();
             let b_spend = SecretKey::from_str(&given.spend_priv_key).unwrap();
 
-            let mut sp_receiver = SilentPayment::new(0, b_scan, b_spend, IS_TESTNET).unwrap();
+            let mut sp_receiver = Receiver::new(0, b_scan, b_spend, IS_TESTNET).unwrap();
 
             let outputs_to_check = decode_outputs_to_check(&given.outputs);
 
