@@ -295,11 +295,12 @@ impl Receiver {
     pub fn get_taproot_output_from_tweak_data(
         &self,
         tweak_data: &PublicKey,
+        n: u32,
     ) -> Result<XOnlyPublicKey> {
         let secp = secp256k1::Secp256k1::new();
         let B_spend = &self.spend_privkey.public_key(&secp);
         let ecdh_shared_secret = self.calculate_shared_secret(tweak_data)?;
-        let t_n: Scalar = calculate_t_n(&ecdh_shared_secret, 0)?;
+        let t_n: Scalar = calculate_t_n(&ecdh_shared_secret, n)?;
         let P_n: PublicKey = calculate_P_n(&B_spend, t_n)?;
 
         Ok(P_n.x_only_public_key().0)
