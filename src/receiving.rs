@@ -274,9 +274,9 @@ impl Receiver {
         }
     }
 
-    /// Get a taproot output from a transaction's tweak data.
-    /// Using the tweak data, this function will calculate the resulting taproot output, given the assumption that this transaction is a payment to us.
-    /// This function can be useful BIP158 block filters, to create script pubkeys to look for.
+    /// Get the Script byte vector from a transaction's tweak data.
+    /// Using the tweak data, this function will calculate the resulting script, given the assumption that this transaction is a payment to us.
+    /// This Script can be useful for BIP158 block filters.
     /// Important note: this function does not support labels!
     ///
     /// # Arguments
@@ -285,25 +285,31 @@ impl Receiver {
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `Result` wrapping a `XOnlyPublicKey`, which is the calculated taproot output.
+    /// If successful, the function returns a `Result` wrapping a Script as a 34-byte vector. This has the following format: `OP_PUSHNUM_1 OP_PUSHBYTES_32 taproot_output`
     ///
     /// # Errors
     ///
     /// This function will return an error if:
     ///
     /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
-    pub fn get_taproot_output_from_tweak_data(
+    pub fn get_script_bytes_from_tweak_data(
         &self,
         tweak_data: &PublicKey,
         n: u32,
-    ) -> Result<XOnlyPublicKey> {
+    ) -> Result<Vec<u8>> {
         let secp = secp256k1::Secp256k1::new();
         let B_spend = &self.spend_privkey.public_key(&secp);
         let ecdh_shared_secret = self.calculate_shared_secret(tweak_data)?;
         let t_n: Scalar = calculate_t_n(&ecdh_shared_secret, n)?;
         let P_n: PublicKey = calculate_P_n(&B_spend, t_n)?;
+        let output_key_bytes = P_n.x_only_public_key().0.serialize();
 
-        Ok(P_n.x_only_public_key().0)
+        // hardcoded opcode values for OP_PUSHNUM_1 and OP_PUSHBYTES_32
+        let mut result = vec![0x51, 0x20];
+
+        result.extend(output_key_bytes);
+
+        Ok(result)
     }
 
     /// Helper function that can be used to calculate the elliptic curce shared secret.
