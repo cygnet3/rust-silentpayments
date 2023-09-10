@@ -146,7 +146,7 @@ pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> Scalar {
 }
 
 pub fn verify_and_calculate_signatures(
-    privkeys: Vec<SecretKey>,
+    privkeys: Vec<Scalar>,
     b_spend: SecretKey,
 ) -> Result<Vec<OutputWithSignature>, secp256k1::Error> {
     let secp = secp256k1::Secp256k1::new();
@@ -157,7 +157,7 @@ pub fn verify_and_calculate_signatures(
     let mut res: Vec<OutputWithSignature> = vec![];
     for tweak in privkeys {
         // Add the tweak to the b_spend to get the final key
-        let k = b_spend.add_tweak(&Scalar::from(tweak))?;
+        let k = b_spend.add_tweak(&tweak)?;
 
         // get public key
         let P = k.x_only_public_key(&secp).0;
@@ -171,7 +171,7 @@ pub fn verify_and_calculate_signatures(
         // Push result to list
         res.push(OutputWithSignature {
             pub_key: P.to_string(),
-            priv_key_tweak: hex::encode(tweak.secret_bytes()),
+            priv_key_tweak: hex::encode(tweak.to_be_bytes()),
             signature: sig.to_string(),
         });
     }

@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[cfg(feature = "receiving")]
 use crate::receiving::{Label, NULL_LABEL};
 
-use crate::{Error, Result};
+use crate::Result;
 use secp256k1::{
     hashes::{sha256, Hash},
     PublicKey, Scalar, Secp256k1, SecretKey,
@@ -38,7 +38,7 @@ pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<Sec
 #[cfg(feature = "receiving")]
 pub(crate) fn insert_new_key(
     mut new_privkey: SecretKey,
-    my_outputs: &mut HashMap<Label, HashSet<SecretKey>>,
+    my_outputs: &mut HashMap<Label, Vec<Scalar>>,
     label: Option<&Label>,
 ) -> Result<()> {
     let label: &Label = match label {
@@ -49,14 +49,10 @@ pub(crate) fn insert_new_key(
         None => &NULL_LABEL,
     };
 
-    let res = my_outputs
+    my_outputs
         .entry(label.to_owned())
-        .or_insert_with(HashSet::new)
-        .insert(new_privkey.into());
+        .or_insert_with(Vec::new)
+        .push(new_privkey.into());
 
-    if res {
-        Ok(())
-    } else {
-        Err(Error::GenericError("Duplicate key found".to_owned()))
-    }
+    Ok(())
 }
