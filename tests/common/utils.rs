@@ -155,11 +155,12 @@ pub fn verify_and_calculate_signatures(
     let aux = secp256k1::hashes::sha256::Hash::hash(b"random auxiliary data").into_inner();
 
     let mut res: Vec<OutputWithSignature> = vec![];
-    for k in privkeys {
-        let P = k.x_only_public_key(&secp).0;
+    for tweak in privkeys {
+        // Add the tweak to the b_spend to get the final key
+        let k = b_spend.add_tweak(&Scalar::from(tweak))?;
 
-        // Add the negated b_spend to get only the tweak
-        let tweak = k.add_tweak(&Scalar::from(b_spend.negate()))?;
+        // get public key
+        let P = k.x_only_public_key(&secp).0;
 
         // Sign the message with schnorr
         let sig = secp.sign_schnorr_with_aux_rand(&msg, &k.keypair(&secp), &aux);
