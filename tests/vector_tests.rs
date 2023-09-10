@@ -8,7 +8,7 @@ mod tests {
         str::FromStr,
     };
 
-    use secp256k1::{PublicKey, Secp256k1, SecretKey};
+    use secp256k1::{PublicKey, Secp256k1, SecretKey, Scalar};
 
     #[cfg(feature = "receiving")]
     use silentpayments::receiving::Receiver;
@@ -134,10 +134,10 @@ mod tests {
                 .scan_transaction_with_labels(&tweak_data, outputs_to_check)
                 .unwrap();
 
-            let privkeys: Vec<SecretKey> = scanned_outputs_received
+            let key_tweaks: Vec<Scalar> = scanned_outputs_received
                 .into_iter()
                 .flat_map(|(_, list)| {
-                    let mut ret: Vec<SecretKey> = vec![];
+                    let mut ret: Vec<Scalar> = vec![];
                     for l in list {
                         ret.push(l);
                     }
@@ -145,7 +145,7 @@ mod tests {
                 })
                 .collect();
 
-            let mut res = verify_and_calculate_signatures(privkeys, b_spend).unwrap();
+            let mut res = verify_and_calculate_signatures(key_tweaks, b_spend).unwrap();
 
             res.sort_by_key(|output| output.pub_key.clone());
             expected
