@@ -9,6 +9,7 @@ use crate::{
     Error,
 };
 use bech32::ToBase32;
+use bimap::BiMap;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 
 use crate::Result;
@@ -90,8 +91,8 @@ impl From<Label> for Scalar {
 pub struct Receiver {
     version: u8,
     scan_privkey: SecretKey,
-    spend_privkey: SecretKey,
-    labels: HashMap<PublicKey, Label>,
+    spend_pubkey: PublicKey,
+    labels: BiMap<Label, PublicKey>,
     is_testnet: bool,
 }
 
@@ -99,10 +100,10 @@ impl Receiver {
     pub fn new(
         version: u32,
         scan_privkey: SecretKey,
-        spend_privkey: SecretKey,
+        spend_pubkey: PublicKey,
         is_testnet: bool,
     ) -> Result<Self> {
-        let labels: HashMap<PublicKey, Label> = HashMap::new();
+        let labels: BiMap<Label, PublicKey> = BiMap::new();
 
         // Check version, we just refuse anything other than 0 for now
         if version != 0 {
@@ -114,7 +115,7 @@ impl Receiver {
         Ok(Receiver {
             version: version as u8,
             scan_privkey,
-            spend_privkey,
+            spend_pubkey,
             labels,
             is_testnet,
         })
@@ -125,14 +126,17 @@ impl Receiver {
     pub fn add_label(&mut self, label: Label) -> Result<bool> {
         let secp = Secp256k1::new();
 
-        let secret = SecretKey::from_slice(&label.as_inner().to_be_bytes())?;
-        let old_value = self.labels.insert(secret.public_key(&secp), label);
-        Ok(old_value.is_none())
+        let m = SecretKey::from_slice(&label.as_inner().to_be_bytes())?;
+        let mG = m.public_key(&secp);
+
+        let old = self.labels.insert(label, mG);
+
+        Ok(!old.did_overwrite())
     }
 
     /// List all currently known labels used by this recipient.
     pub fn list_labels(&self) -> HashSet<Label> {
-        self.labels.values().cloned().collect()
+        self.labels.left_values().cloned().collect()
     }
 
     /// Get the bech32m-encoded silent payment address for a specific label.
@@ -152,15 +156,13 @@ impl Receiver {
     /// * If the label is not known for this recipient.
     /// * If key addition results in an invalid key.
     pub fn get_receiving_address_for_label(&self, label: &Label) -> Result<String> {
-        let secp = Secp256k1::new();
-
-        let b_m = if self.labels.values().any(|l| l.eq(label)) {
-            self.spend_privkey.add_tweak(label.as_inner())?
-        } else {
-            return Err(Error::InvalidLabel("Label not known".to_owned()));
-        };
-
-        Ok(self.encode_silent_payment_address(b_m.public_key(&secp)))
+        match self.labels.get_by_left(label) {
+            Some(mG) => {
+                let B_m = mG.combine(&self.spend_pubkey)?;
+                Ok(self.encode_silent_payment_address(B_m))
+            }
+            None => Err(Error::InvalidLabel("Label not known".to_owned())),
+        }
     }
 
     /// Get the bech32m-encoded silent payment address.
@@ -169,9 +171,7 @@ impl Receiver {
     ///
     /// If successful, the function returns a `String`, which is the bech32m encoded silent payment address.
     pub fn get_receiving_address(&self) -> String {
-        let secp = Secp256k1::new();
-
-        self.encode_silent_payment_address(self.spend_privkey.public_key(&secp))
+        self.encode_silent_payment_address(self.spend_pubkey)
     }
 
     /// Scans a transaction for outputs belonging to us.
@@ -183,7 +183,7 @@ impl Receiver {
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `Result` wrapping a `HashMap` of labels to a set of private keys (since the same label may have been paid multiple times in one transaction). A resulting `HashMap` of length 0 implies none of the outputs are owned by us.
+    /// If successful, the function returns a `Result` wrapping a `HashMap` of labels to a set of key tweaks (since the same label may have been paid multiple times in one transaction). The key tweaks can be added to the wallet's spending private key to produce a key that can spend the utxo. A resulting `HashMap` of length 0 implies none of the outputs are owned by us.
     ///
     /// # Errors
     ///
@@ -197,19 +197,18 @@ impl Receiver {
         pubkeys_to_check: Vec<XOnlyPublicKey>,
     ) -> Result<HashMap<Label, HashSet<SecretKey>>> {
         let secp = secp256k1::Secp256k1::new();
-        let B_spend = &self.spend_privkey.public_key(&secp);
         let ecdh_shared_secret = self.calculate_shared_secret(tweak_data)?;
 
         let mut my_outputs: HashMap<Label, HashSet<SecretKey>> = HashMap::new();
         let mut n: u32 = 0;
         while my_outputs.len() == n as usize {
-            let t_n: Scalar = calculate_t_n(&ecdh_shared_secret, n)?;
-            let P_n: PublicKey = calculate_P_n(&B_spend, t_n)?;
+            let t_n = calculate_t_n(&ecdh_shared_secret, n)?;
+            let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
             if pubkeys_to_check
                 .iter()
                 .any(|p| p.eq(&P_n.x_only_public_key().0))
             {
-                insert_new_key(self.spend_privkey.add_tweak(&t_n)?, &mut my_outputs, None)?;
+                insert_new_key(t_n, &mut my_outputs, None)?;
             } else if !self.labels.is_empty() {
                 // We subtract P_n from each outputs to check and see if match a public key in our label list
                 'outer: for p in &pubkeys_to_check {
@@ -219,9 +218,9 @@ impl Receiver {
                     let odd_diff = odd_output.combine(&P_n.negate(&secp))?;
 
                     for diff in vec![even_diff, odd_diff] {
-                        if let Some(label) = self.labels.get(&diff) {
+                        if let Some(label) = self.labels.get_by_right(&diff) {
                             insert_new_key(
-                                self.spend_privkey.add_tweak(&t_n)?,
+                                t_n,
                                 &mut my_outputs,
                                 Some(label),
                             )?;
@@ -296,11 +295,9 @@ impl Receiver {
         &self,
         tweak_data: &PublicKey,
     ) -> Result<Vec<u8>> {
-        let secp = secp256k1::Secp256k1::new();
-        let B_spend = &self.spend_privkey.public_key(&secp);
         let ecdh_shared_secret = self.calculate_shared_secret(tweak_data)?;
-        let t_n: Scalar = calculate_t_n(&ecdh_shared_secret, 0)?;
-        let P_n: PublicKey = calculate_P_n(&B_spend, t_n)?;
+        let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret, 0)?;
+        let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
         let output_key_bytes = P_n.x_only_public_key().0.serialize();
 
         // hardcoded opcode values for OP_PUSHNUM_1 and OP_PUSHBYTES_32

@@ -23,6 +23,7 @@ receiving = []
 secp256k1 = {version = "0.24", features = ["bitcoin-hashes-std"] }
 hex = "0.4"
 bech32 = "0.9"
+bimap = "0.6"
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }

@@ -25,12 +25,14 @@ pub(crate) fn calculate_P_n(B_spend: &PublicKey, t_n: Scalar) -> Result<PublicKe
     Ok(P_n)
 }
 
-pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<Scalar> {
+pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<SecretKey> {
     let mut bytes: Vec<u8> = Vec::new();
     bytes.extend_from_slice(ecdh_shared_secret);
     bytes.extend_from_slice(&ser_uint32(n));
 
-    Ok(Scalar::from_be_bytes(sha256(&bytes))?)
+    let sk = SecretKey::from_slice(&sha256(&bytes))?;
+
+    Ok(sk)
 }
 
 #[cfg(feature = "receiving")]
@@ -50,7 +52,7 @@ pub(crate) fn insert_new_key(
     let res = my_outputs
         .entry(label.to_owned())
         .or_insert_with(HashSet::new)
-        .insert(new_privkey);
+        .insert(new_privkey.into());
 
     if res {
         Ok(())
