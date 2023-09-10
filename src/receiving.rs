@@ -195,14 +195,14 @@ impl Receiver {
         &self,
         tweak_data: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
-    ) -> Result<HashMap<Label, HashSet<SecretKey>>> {
+    ) -> Result<HashMap<Label, Vec<Scalar>>> {
         let secp = secp256k1::Secp256k1::new();
         let ecdh_shared_secret = self.calculate_shared_secret(tweak_data)?;
 
-        let mut my_outputs: HashMap<Label, HashSet<SecretKey>> = HashMap::new();
+        let mut my_outputs: HashMap<Label, Vec<Scalar>> = HashMap::new();
         let mut n: u32 = 0;
         while my_outputs.len() == n as usize {
-            let t_n = calculate_t_n(&ecdh_shared_secret, n)?;
+            let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret, n)?;
             let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
             if pubkeys_to_check
                 .iter()
@@ -245,7 +245,7 @@ impl Receiver {
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `Result` wrapping a `HashSet` of private keys. A resulting `HashSet` of length 0 implies none of the outputs are owned by us.
+    /// If successful, the function returns a `Result` wrapping a `Vec` of private key tweaks. A resulting `Vec` of length 0 implies none of the outputs are owned by us.
     ///
     /// # Errors
     ///
@@ -257,7 +257,7 @@ impl Receiver {
         &self,
         tweak_data: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
-    ) -> Result<HashSet<SecretKey>> {
+    ) -> Result<Vec<Scalar>> {
         if !self.labels.is_empty() {
             return Err(Error::GenericError(
                 "This function should only be used by wallets without labels; use scan_transaction_with_labels instead".to_owned(),
@@ -269,7 +269,7 @@ impl Receiver {
 
         match map.remove(&NULL_LABEL) {
             Some(res) => Ok(res),
-            None => Ok(HashSet::new()),
+            None => Ok(Vec::new()),
         }
     }
 
