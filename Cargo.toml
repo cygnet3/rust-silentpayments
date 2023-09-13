@@ -2,6 +2,7 @@
 name = "silentpayments"
 version = "0.1.0"
 authors = ["cygnet <cygnet3@proton.me>"]
+license = "MIT"
 edition = "2021"
 description = "A library to add silent payments support to wallets"
 homepage = "https://github.com/cygnet3/rust-silentpayments"
