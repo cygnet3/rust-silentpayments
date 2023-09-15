@@ -121,6 +121,15 @@ pub fn sender_calculate_shared_secret(
     diffie_hellman.mul_tweak(&secp, &outpoints_hash).unwrap()
 }
 
+pub fn receiver_calculate_shared_secret(
+    tweak_data: PublicKey,
+    b_scan: SecretKey,
+) -> PublicKey {
+    let secp = secp256k1::Secp256k1::new();
+
+    tweak_data.mul_tweak(&secp, &b_scan.into()).unwrap()
+}
+
 pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> Scalar {
     let mut outpoints: Vec<Vec<u8>> = vec![];
 
