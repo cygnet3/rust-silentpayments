@@ -9,6 +9,7 @@ use crate::{
     Result,
 };
 
+#[derive(Copy, Clone, Debug)]
 struct SilentPaymentAddress {
     version: u8,
     scan_pubkey: PublicKey,
@@ -103,7 +104,7 @@ impl Into<String> for SilentPaymentAddress {
 /// # Arguments
 ///
 /// * `recipients` - A `Vec` of silent payment addresses to be paid.
-/// * `ecdh_shared_secrets` - A HashMap that maps every scan key (representing a recipient) to a shared secret. This shared secret is created using the scan key, along with the private keys of the outputs to spend. This library has no access to these private keys, so we expect the computed shared secret instead.
+/// * `partial_secret` - A `SecretKey` that represents the sum of the private keys of eligible inputs of the transaction multiplied by the hash of its outpoints.
 ///
 /// # Returns
 ///
@@ -119,26 +120,22 @@ impl Into<String> for SilentPaymentAddress {
 /// * Edge cases are hit during elliptic curve computation (extremely unlikely).
 pub fn generate_multiple_recipient_pubkeys(
     recipients: Vec<String>,
-    ecdh_shared_secrets: HashMap<PublicKey, PublicKey>,
+    partial_secret: SecretKey,
 ) -> Result<HashMap<String, Vec<XOnlyPublicKey>>> {
     let secp = Secp256k1::new();
 
     let mut silent_payment_groups: HashMap<PublicKey, (PublicKey, Vec<SilentPaymentAddress>)> =
         HashMap::new();
-    for recipient in recipients {
-        let recipient: SilentPaymentAddress = recipient.try_into()?;
-        let B_scan = recipient.scan_pubkey;
+    for address in recipients {
+        let address: SilentPaymentAddress = address.try_into()?;
+        let B_scan = address.scan_pubkey;
 
         if let Some((_, payments)) = silent_payment_groups.get_mut(&B_scan) {
-            payments.push(recipient);
+            payments.push(address);
         } else {
-            let ecdh_shared_secret = ecdh_shared_secrets
-                .get(&B_scan)
-                .ok_or(Error::InvalidSharedSecret(
-                    "Shared secret for this B_scan not found".to_owned(),
-                ))?
-                .to_owned();
-            silent_payment_groups.insert(B_scan, (ecdh_shared_secret, vec![recipient]));
+            let ecdh_shared_secret: PublicKey = B_scan.mul_tweak(&secp, &partial_secret.into())?;
+
+            silent_payment_groups.insert(B_scan, (ecdh_shared_secret, vec![address]));
         }
     }
 
@@ -148,7 +145,7 @@ pub fn generate_multiple_recipient_pubkeys(
 
         let (ecdh_shared_secret, recipients) = group;
 
-        for recipient in recipients {
+        for addr in recipients {
             let mut bytes: Vec<u8> = Vec::new();
             bytes.extend_from_slice(&ecdh_shared_secret.serialize());
             bytes.extend_from_slice(&ser_uint32(n));
@@ -156,10 +153,10 @@ pub fn generate_multiple_recipient_pubkeys(
             let t_n = sha256(&bytes);
 
             let res = SecretKey::from_slice(&t_n)?.public_key(&secp);
-            let reskey = res.combine(&recipient.m_pubkey)?;
+            let reskey = res.combine(&addr.m_pubkey)?;
             let (reskey_xonly, _) = reskey.x_only_public_key();
 
-            let entry = result.entry(recipient.into()).or_insert_with(Vec::new);
+            let entry = result.entry(addr.into()).or_insert_with(Vec::new);
             entry.push(reskey_xonly);
             n += 1;
         }
@@ -175,7 +172,7 @@ pub fn generate_multiple_recipient_pubkeys(
 /// # Arguments
 ///
 /// * `recipient` - A `String` of the bech32m-encoded silent payment address to be paid.
-/// * `ecdh_shared_secret` - A `PublicKey` representing the shared secret. This shared secret is created using the scan key, along with the private keys of the outputs to spend. This library has no access to these private keys, so we expect the computed shared secret instead.
+/// * `partial_secret` - A `SecretKey` representing the private keys of the outputs to spend multiplied by the hash of its outpoints. 
 ///
 /// # Returns
 ///
@@ -189,15 +186,9 @@ pub fn generate_multiple_recipient_pubkeys(
 /// * Edge cases are hit during elliptic curve computation (extremely unlikely).
 pub fn generate_recipient_pubkey(
     recipient: String,
-    ecdh_shared_secret: PublicKey,
+    partial_secret: SecretKey,
 ) -> Result<XOnlyPublicKey> {
-    let scan_pubkey = decode_scan_pubkey(&recipient)?;
-
-    // re-use generate_recipient_pubkeys function logic
-    let recipients = vec![recipient];
-    let mut ecdh_shared_secrets = HashMap::new();
-    ecdh_shared_secrets.insert(scan_pubkey, ecdh_shared_secret);
-    let res = generate_multiple_recipient_pubkeys(recipients, ecdh_shared_secrets)?;
+    let res = generate_multiple_recipient_pubkeys(vec![recipient], partial_secret)?;
 
     let output = res
         .into_values()

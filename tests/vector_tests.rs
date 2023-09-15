@@ -8,20 +8,20 @@ mod tests {
         str::FromStr,
     };
 
-    use secp256k1::{PublicKey, Secp256k1, SecretKey, Scalar};
+    use secp256k1::{Secp256k1, SecretKey, Scalar};
 
     #[cfg(feature = "receiving")]
     use silentpayments::receiving::Receiver;
 
     #[cfg(feature = "sending")]
-    use silentpayments::sending::{decode_scan_pubkey, generate_multiple_recipient_pubkeys};
+    use silentpayments::sending::generate_multiple_recipient_pubkeys;
 
     use crate::common::{
         structs::TestData,
         utils::{
             self, calculate_tweak_data_for_recipient, decode_input_pub_keys, decode_outpoints,
             decode_outputs_to_check, decode_priv_keys, decode_recipients, get_a_sum_secret_keys,
-            hash_outpoints, sender_calculate_shared_secret, verify_and_calculate_signatures, receiver_calculate_shared_secret
+            hash_outpoints, sender_calculate_partial_secret, verify_and_calculate_signatures, receiver_calculate_shared_secret
         },
     };
 
@@ -59,15 +59,11 @@ mod tests {
 
             let a_sum = get_a_sum_secret_keys(&input_priv_keys);
 
-            let mut ecdh_shared_secrets: HashMap<PublicKey, PublicKey> = HashMap::new();
-            for addr in &silent_addresses {
-                let B_scan = decode_scan_pubkey(&addr).unwrap();
-                let ecdh_shared_secret =
-                    sender_calculate_shared_secret(a_sum, B_scan, outpoints_hash);
-                ecdh_shared_secrets.insert(B_scan, ecdh_shared_secret);
-            }
+            let partial_secret =
+                sender_calculate_partial_secret(a_sum, outpoints_hash);
+
             let outputs =
-                generate_multiple_recipient_pubkeys(silent_addresses, ecdh_shared_secrets).unwrap();
+                generate_multiple_recipient_pubkeys(silent_addresses, partial_secret).unwrap();
 
             for output_pubkeys in &outputs {
                 for pubkey in output_pubkeys.1 {
