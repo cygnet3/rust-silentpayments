@@ -9,7 +9,6 @@ use crate::{
     Error,
 };
 use bech32::ToBase32;
-use bimap::BiMap;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 
 use crate::Result;
@@ -92,7 +91,8 @@ pub struct Receiver {
     version: u8,
     scan_privkey: SecretKey,
     spend_pubkey: PublicKey,
-    labels: BiMap<Label, PublicKey>,
+    label_to_diff: HashMap<Label, PublicKey>,
+    diff_to_label: HashMap<PublicKey, Label>,
     is_testnet: bool,
 }
 
@@ -103,7 +103,8 @@ impl Receiver {
         spend_pubkey: PublicKey,
         is_testnet: bool,
     ) -> Result<Self> {
-        let labels: BiMap<Label, PublicKey> = BiMap::new();
+        let label_to_diff = HashMap::new();
+        let diff_to_label = HashMap::new();
 
         // Check version, we just refuse anything other than 0 for now
         if version != 0 {
@@ -116,7 +117,8 @@ impl Receiver {
             version: version as u8,
             scan_privkey,
             spend_pubkey,
-            labels,
+            label_to_diff,
+            diff_to_label,
             is_testnet,
         })
     }
@@ -129,14 +131,15 @@ impl Receiver {
         let m = SecretKey::from_slice(&label.as_inner().to_be_bytes())?;
         let mG = m.public_key(&secp);
 
-        let old = self.labels.insert(label, mG);
+        let old_diff = self.label_to_diff.insert(label.clone(), mG);
+        let old_label = self.diff_to_label.insert(mG, label);
 
-        Ok(!old.did_overwrite())
+        Ok(old_diff.is_none() && old_label.is_none())
     }
 
     /// List all currently known labels used by this recipient.
     pub fn list_labels(&self) -> HashSet<Label> {
-        self.labels.left_values().cloned().collect()
+        self.label_to_diff.keys().cloned().collect()
     }
 
     /// Get the bech32m-encoded silent payment address for a specific label.
@@ -156,7 +159,7 @@ impl Receiver {
     /// * If the label is not known for this recipient.
     /// * If key addition results in an invalid key.
     pub fn get_receiving_address_for_label(&self, label: &Label) -> Result<String> {
-        match self.labels.get_by_left(label) {
+        match self.label_to_diff.get(label) {
             Some(mG) => {
                 let B_m = mG.combine(&self.spend_pubkey)?;
                 Ok(self.encode_silent_payment_address(B_m))
@@ -209,7 +212,7 @@ impl Receiver {
                 .any(|p| p.eq(&P_n.x_only_public_key().0))
             {
                 insert_new_key(t_n, &mut my_outputs, None)?;
-            } else if !self.labels.is_empty() {
+            } else if !self.label_to_diff.is_empty() {
                 // We subtract P_n from each outputs to check and see if match a public key in our label list
                 'outer: for p in &pubkeys_to_check {
                     let even_output = p.public_key(Parity::Even);
@@ -218,7 +221,7 @@ impl Receiver {
                     let odd_diff = odd_output.combine(&P_n.negate(&secp))?;
 
                     for diff in vec![even_diff, odd_diff] {
-                        if let Some(label) = self.labels.get_by_right(&diff) {
+                        if let Some(label) = self.diff_to_label.get(&diff) {
                             insert_new_key(
                                 t_n,
                                 &mut my_outputs,
@@ -258,7 +261,7 @@ impl Receiver {
         tweak_data: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
     ) -> Result<Vec<Scalar>> {
-        if !self.labels.is_empty() {
+        if !self.label_to_diff.is_empty() {
             return Err(Error::GenericError(
                 "This function should only be used by wallets without labels; use scan_transaction_with_labels instead".to_owned(),
             ));
