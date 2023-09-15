@@ -90,7 +90,7 @@ impl From<Label> for Scalar {
 #[derive(Debug)]
 pub struct Receiver {
     version: u8,
-    scan_privkey: SecretKey,
+    scan_pubkey: PublicKey,
     spend_pubkey: PublicKey,
     labels: BiMap<Label, PublicKey>,
     is_testnet: bool,
@@ -99,7 +99,7 @@ pub struct Receiver {
 impl Receiver {
     pub fn new(
         version: u32,
-        scan_privkey: SecretKey,
+        scan_pubkey: PublicKey,
         spend_pubkey: PublicKey,
         is_testnet: bool,
     ) -> Result<Self> {
@@ -114,7 +114,7 @@ impl Receiver {
 
         Ok(Receiver {
             version: version as u8,
-            scan_privkey,
+            scan_pubkey,
             spend_pubkey,
             labels,
             is_testnet,
@@ -178,7 +178,7 @@ impl Receiver {
     ///
     /// # Arguments
     ///
-    /// * `tweak_data` -  The tweak data for the transaction as a PublicKey, the result of elliptic-curve multiplication of `outpoints_hash * A`.
+    /// * `ecdh_shared_secret` -  The ECDH shared secret between sender and recipient as a PublicKey, the result of elliptic-curve multiplication of `(outpoints_hash * sum_inputs_pubkeys) * scan_private_key`.
     /// * `pubkeys_to_check` - A `HashSet` of public keys of all (unspent) taproot output of the transaction.
     ///
     /// # Returns
@@ -193,16 +193,15 @@ impl Receiver {
     /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
     pub fn scan_transaction_with_labels(
         &self,
-        tweak_data: &PublicKey,
+        ecdh_shared_secret: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
     ) -> Result<HashMap<Label, Vec<Scalar>>> {
         let secp = secp256k1::Secp256k1::new();
-        let ecdh_shared_secret = self.calculate_shared_secret(tweak_data)?;
 
         let mut my_outputs: HashMap<Label, Vec<Scalar>> = HashMap::new();
         let mut n: u32 = 0;
         while my_outputs.len() == n as usize {
-            let t_n = calculate_t_n(&ecdh_shared_secret, n)?;
+            let t_n = calculate_t_n(&ecdh_shared_secret.serialize(), n)?;
             let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
             if pubkeys_to_check
                 .iter()
@@ -280,7 +279,7 @@ impl Receiver {
     ///
     /// # Arguments
     ///
-    /// * `tweak_data` -  The tweak data for the transaction as a PublicKey, the result of elliptic-curve multiplication of `outpoints_hash * A`.
+    /// * `ecdh_shared_secret` -  The ECDH shared secret between sender and recipient as a PublicKey, the result of elliptic-curve multiplication of `(outpoints_hash * sum_inputs_pubkeys) * scan_private_key`.
     ///
     /// # Returns
     ///
@@ -293,39 +292,13 @@ impl Receiver {
     /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
     pub fn get_taproot_output_from_tweak_data(
         &self,
-        tweak_data: &PublicKey,
+        ecdh_shared_secret: &PublicKey,
         n: u32,
     ) -> Result<XOnlyPublicKey> {
-        let ecdh_shared_secret = self.calculate_shared_secret(tweak_data)?;
-        let t_n = calculate_t_n(&ecdh_shared_secret, n)?;
+        let t_n = calculate_t_n(&ecdh_shared_secret.serialize(), n)?;
         let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
 
         Ok(P_n.x_only_public_key().0)
-    }
-
-    /// Helper function that can be used to calculate the elliptic curce shared secret.
-    ///
-    /// # Arguments
-    ///
-    /// * `tweak_data` -  The tweak data given as a PublicKey, the result of elliptic-curve multiplication of the outpoints_hash and `A_sum` (the sum of all input public keys).
-    ///
-    /// # Returns
-    ///
-    /// If successful, the function returns a `Result` wrapping an 33-byte array, which is the shared secret that only the sender and the recipient of a silent payment can derive. This result can be used in the scan_for_outputs function.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if:
-    ///
-    /// * If key multiplication with the scan private key returns an invalid result.
-    fn calculate_shared_secret(&self, tweak_data: &PublicKey) -> Result<[u8; 33]> {
-        let secp = Secp256k1::new();
-
-        let ecdh_shared_secret = tweak_data
-            .mul_tweak(&secp, &self.scan_privkey.into())?
-            .serialize();
-
-        Ok(ecdh_shared_secret)
     }
 
     fn encode_silent_payment_address(&self, m_pubkey: PublicKey) -> String {
@@ -334,10 +307,9 @@ impl Receiver {
             true => "tsp",
         };
 
-        let secp = Secp256k1::new();
         let version = bech32::u5::try_from_u8(self.version).unwrap();
 
-        let B_scan_bytes = self.scan_privkey.public_key(&secp).serialize();
+        let B_scan_bytes = self.scan_pubkey.serialize();
         let B_m_bytes = m_pubkey.serialize();
 
         let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
