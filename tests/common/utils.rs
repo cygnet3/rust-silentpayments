@@ -110,15 +110,11 @@ pub fn calculate_tweak_data_for_recipient(
     A_sum.mul_tweak(&secp, &outpoints_hash).unwrap()
 }
 
-pub fn sender_calculate_shared_secret(
+pub fn sender_calculate_partial_secret(
     a_sum: SecretKey,
-    B_scan: PublicKey,
     outpoints_hash: Scalar,
-) -> PublicKey {
-    let secp = secp256k1::Secp256k1::new();
-
-    let diffie_hellman = B_scan.mul_tweak(&secp, &a_sum.into()).unwrap();
-    diffie_hellman.mul_tweak(&secp, &outpoints_hash).unwrap()
+) -> SecretKey{
+    a_sum.mul_tweak(&outpoints_hash).unwrap()
 }
 
 pub fn receiver_calculate_shared_secret(
