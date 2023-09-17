@@ -4,7 +4,7 @@ mod common;
 #[cfg(test)]
 mod tests {
     use std::{
-        collections::{HashMap, HashSet},
+        collections::HashSet,
         str::FromStr,
     };
 

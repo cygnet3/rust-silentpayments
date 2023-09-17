@@ -200,23 +200,3 @@ pub fn generate_recipient_pubkey(
         .next()
         .expect("Vec should always be of length 1"))
 }
-
-/// Helper function to retrieve the scanning public key from a bech32m-encoded silent payment address.
-///
-/// # Arguments
-///
-/// * `silent_payment_address` - The bech32m-encoded silent payment address to be decoded.
-///
-/// # Returns
-///
-/// If successful, the function returns a `Result` wrapping a `PublicKey`, the scanning public key.
-///
-/// # Errors
-///
-/// This function will return an error if:
-///
-/// * The silent payment address has an incorrent format.
-pub fn decode_scan_pubkey(silent_payment_address: &str) -> Result<PublicKey> {
-    let address: SilentPaymentAddress = silent_payment_address.try_into()?;
-    Ok(address.scan_pubkey)
-}
