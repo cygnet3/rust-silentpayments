@@ -212,11 +212,7 @@ impl Receiver {
 
                     for diff in [even_diff, odd_diff] {
                         if let Some(label) = self.labels.get_by_right(&diff) {
-                            insert_new_key(
-                                t_n,
-                                &mut my_outputs,
-                                Some(label),
-                            )?;
+                            insert_new_key(t_n, &mut my_outputs, Some(label))?;
                             break 'outer;
                         }
                     }

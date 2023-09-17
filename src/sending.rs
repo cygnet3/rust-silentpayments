@@ -167,7 +167,7 @@ pub fn generate_multiple_recipient_pubkeys(
 /// # Arguments
 ///
 /// * `recipient` - A `String` of the bech32m-encoded silent payment address to be paid.
-/// * `partial_secret` - A `SecretKey` representing the private keys of the outputs to spend multiplied by the hash of its outpoints. 
+/// * `partial_secret` - A `SecretKey` representing the private keys of the outputs to spend multiplied by the hash of its outpoints.
 ///
 /// # Returns
 ///
