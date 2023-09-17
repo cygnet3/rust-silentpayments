@@ -11,7 +11,7 @@ use secp256k1::{
 };
 use serde_json::from_str;
 
-use super::structs::{Outpoint, OutputWithSignature, TestData};
+use super::structs::{OutputWithSignature, TestData};
 
 pub fn read_file() -> Vec<TestData> {
     let mut file = File::open("tests/resources/send_and_receive_test_vectors.json").unwrap();
@@ -20,16 +20,18 @@ pub fn read_file() -> Vec<TestData> {
     from_str(&contents).unwrap()
 }
 
-pub fn decode_outpoints(outpoints: &Vec<(String, u32)>) -> HashSet<Outpoint> {
+pub fn decode_outpoints(outpoints: &Vec<(String, u32)>) -> HashSet<([u8; 32], u32)> {
     outpoints
         .iter()
-        .map(|(txid_str, vout)| Outpoint {
-            txid: hex::decode(txid_str)
-                .unwrap()
-                .as_slice()
-                .try_into()
-                .unwrap(),
-            vout: *vout,
+        .map(|(txid_str, vout)| {
+            (
+                hex::decode(txid_str)
+                    .unwrap()
+                    .as_slice()
+                    .try_into()
+                    .unwrap(),
+                *vout,
+            )
         })
         .collect()
 }
@@ -101,7 +103,7 @@ pub fn get_A_sum_public_keys(input: &Vec<PublicKey>) -> PublicKey {
 
 pub fn calculate_tweak_data_for_recipient(
     input_pub_keys: &Vec<PublicKey>,
-    outpoints: &HashSet<Outpoint>,
+    outpoints: &HashSet<([u8; 32], u32)>,
 ) -> PublicKey {
     let secp = secp256k1::Secp256k1::new();
     let A_sum = get_A_sum_public_keys(input_pub_keys);
@@ -110,28 +112,22 @@ pub fn calculate_tweak_data_for_recipient(
     A_sum.mul_tweak(&secp, &outpoints_hash).unwrap()
 }
 
-pub fn sender_calculate_partial_secret(
-    a_sum: SecretKey,
-    outpoints_hash: Scalar,
-) -> SecretKey{
+pub fn sender_calculate_partial_secret(a_sum: SecretKey, outpoints_hash: Scalar) -> SecretKey {
     a_sum.mul_tweak(&outpoints_hash).unwrap()
 }
 
-pub fn receiver_calculate_shared_secret(
-    tweak_data: PublicKey,
-    b_scan: SecretKey,
-) -> PublicKey {
+pub fn receiver_calculate_shared_secret(tweak_data: PublicKey, b_scan: SecretKey) -> PublicKey {
     let secp = secp256k1::Secp256k1::new();
 
     tweak_data.mul_tweak(&secp, &b_scan.into()).unwrap()
 }
 
-pub fn hash_outpoints(sending_data: &HashSet<Outpoint>) -> Scalar {
+pub fn hash_outpoints(sending_data: &HashSet<([u8; 32], u32)>) -> Scalar {
     let mut outpoints: Vec<Vec<u8>> = vec![];
 
     for outpoint in sending_data {
-        let txid = outpoint.txid;
-        let vout = outpoint.vout;
+        let txid = outpoint.0;
+        let vout = outpoint.1;
 
         let mut bytes: Vec<u8> = Vec::new();
         bytes.extend_from_slice(&txid);
