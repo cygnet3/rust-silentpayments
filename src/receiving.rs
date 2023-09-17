@@ -216,7 +216,7 @@ impl Receiver {
                     let even_diff = even_output.combine(&P_n.negate(&secp))?;
                     let odd_diff = odd_output.combine(&P_n.negate(&secp))?;
 
-                    for diff in vec![even_diff, odd_diff] {
+                    for diff in [even_diff, odd_diff] {
                         if let Some(label) = self.labels.get_by_right(&diff) {
                             insert_new_key(
                                 t_n,
