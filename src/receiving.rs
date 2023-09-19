@@ -293,15 +293,16 @@ impl Receiver {
     pub fn get_script_bytes_from_shared_secret(
         &self,
         ecdh_shared_secret: &PublicKey,
-    ) -> Result<Vec<u8>> {
+    ) -> Result<[u8;34]> {
         let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret.serialize(), 0)?;
         let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
         let output_key_bytes = P_n.x_only_public_key().0.serialize();
 
         // hardcoded opcode values for OP_PUSHNUM_1 and OP_PUSHBYTES_32
-        let mut result = vec![0x51, 0x20];
+        let mut result = [0u8;34];
+        result[..2].copy_from_slice(&[0x51, 0x20]);
 
-        result.extend(output_key_bytes);
+        result[2..].copy_from_slice(&output_key_bytes);
 
         Ok(result)
     }

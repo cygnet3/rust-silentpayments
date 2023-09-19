@@ -9,14 +9,6 @@ use secp256k1::{
     PublicKey, Scalar, Secp256k1, SecretKey,
 };
 
-pub(crate) fn sha256(message: &[u8]) -> [u8; 32] {
-    sha256::Hash::hash(message).into_inner()
-}
-
-pub(crate) fn ser_uint32(u: u32) -> Vec<u8> {
-    u.to_be_bytes().into()
-}
-
 pub(crate) fn calculate_P_n(B_spend: &PublicKey, t_n: Scalar) -> Result<PublicKey> {
     let secp = Secp256k1::new();
 
@@ -26,11 +18,12 @@ pub(crate) fn calculate_P_n(B_spend: &PublicKey, t_n: Scalar) -> Result<PublicKe
 }
 
 pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<SecretKey> {
-    let mut bytes: Vec<u8> = Vec::new();
-    bytes.extend_from_slice(ecdh_shared_secret);
-    bytes.extend_from_slice(&ser_uint32(n));
+    let mut bytes = [0u8;37];
+    bytes[..33].copy_from_slice(ecdh_shared_secret);
+    bytes[33..].copy_from_slice(&n.to_be_bytes());
 
-    let sk = SecretKey::from_slice(&sha256(&bytes))?;
+    let hash = sha256::Hash::hash(&bytes).into_inner();
+    let sk = SecretKey::from_slice(&hash)?;
 
     Ok(sk)
 }
