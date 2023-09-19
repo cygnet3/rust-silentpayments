@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use crate::{
     error::Error,
-    utils::{ser_uint32, sha256},
+    utils::calculate_t_n,
     Result,
 };
 
@@ -146,13 +146,9 @@ pub fn generate_multiple_recipient_pubkeys(
         let (ecdh_shared_secret, recipients) = group;
 
         for addr in recipients {
-            let mut bytes: Vec<u8> = Vec::new();
-            bytes.extend_from_slice(&ecdh_shared_secret.serialize());
-            bytes.extend_from_slice(&ser_uint32(n));
+            let t_n = calculate_t_n(&ecdh_shared_secret.serialize(), n)?;
 
-            let t_n = sha256(&bytes);
-
-            let res = SecretKey::from_slice(&t_n)?.public_key(&secp);
+            let res = t_n.public_key(&secp);
             let reskey = res.combine(&addr.m_pubkey)?;
             let (reskey_xonly, _) = reskey.x_only_public_key();
 
