@@ -124,6 +124,10 @@ impl Receiver {
     /// Takes a Label and adds it to the list of labels that this recipient uses.
     /// Returns a bool on success, `true` if the label was new, `false` if it already existed in our list.
     pub fn add_label(&mut self, label: Label) -> Result<bool> {
+        if label.eq(&NULL_LABEL) {
+            return Ok(false);
+        }
+
         let secp = Secp256k1::new();
 
         let m = SecretKey::from_slice(&label.as_inner().to_be_bytes())?;
@@ -136,7 +140,13 @@ impl Receiver {
 
     /// List all currently known labels used by this recipient.
     pub fn list_labels(&self) -> HashSet<Label> {
-        self.labels.left_values().cloned().collect()
+        let mut labels: HashSet<Label> = self.labels.left_values().cloned().collect();
+
+        if labels.len() > 0 {
+            labels.insert(NULL_LABEL);
+        }
+
+        labels
     }
 
     /// Get the bech32m-encoded silent payment address for a specific label.
@@ -156,6 +166,10 @@ impl Receiver {
     /// * If the label is not known for this recipient.
     /// * If key addition results in an invalid key.
     pub fn get_receiving_address_for_label(&self, label: &Label) -> Result<String> {
+        if label.eq(&NULL_LABEL) {
+            return Ok(self.encode_silent_payment_address(self.spend_pubkey));
+        }
+
         match self.labels.get_by_left(label) {
             Some(mG) => {
                 let B_m = mG.combine(&self.spend_pubkey)?;
@@ -170,8 +184,19 @@ impl Receiver {
     /// # Returns
     ///
     /// If successful, the function returns a `String`, which is the bech32m encoded silent payment address.
-    pub fn get_receiving_address(&self) -> String {
-        self.encode_silent_payment_address(self.spend_pubkey)
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    ///
+    /// * This function is called while labels are in use.
+    pub fn get_receiving_address(&self) -> Result<String> {
+        if !self.labels.is_empty() {
+            return Err(Error::LabelsNotAllowed(
+                "This function can only be used by wallets without labels; call get_receiving_address_for_label instead.".to_owned(),));
+        }
+
+        Ok(self.encode_silent_payment_address(self.spend_pubkey))
     }
 
     /// Scans a transaction for outputs belonging to us.
@@ -218,11 +243,7 @@ impl Receiver {
 
                     for diff in [even_diff, odd_diff] {
                         if let Some(label) = self.labels.get_by_right(&diff) {
-                            insert_new_key(
-                                t_n,
-                                &mut my_outputs,
-                                Some(label),
-                            )?;
+                            insert_new_key(t_n, &mut my_outputs, Some(label))?;
                             break 'outer;
                         }
                     }
@@ -250,6 +271,7 @@ impl Receiver {
     ///
     /// This function will return an error if:
     ///
+    /// * This function is called while labels are in use.
     /// * One of the public keys to scan can't be parsed into a valid x-only public key.
     /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
     pub fn scan_transaction(
@@ -258,8 +280,8 @@ impl Receiver {
         pubkeys_to_check: Vec<XOnlyPublicKey>,
     ) -> Result<Vec<Scalar>> {
         if !self.labels.is_empty() {
-            return Err(Error::GenericError(
-                "This function should only be used by wallets without labels; use scan_transaction_with_labels instead".to_owned(),
+            return Err(Error::LabelsNotAllowed(
+                "This function can only be used by wallets without labels; use scan_transaction_with_labels instead".to_owned(),
             ));
         }
 
@@ -289,17 +311,24 @@ impl Receiver {
     ///
     /// This function will return an error if:
     ///
+    /// * This function is called while labels are in use.
     /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
     pub fn get_script_bytes_from_shared_secret(
         &self,
         ecdh_shared_secret: &PublicKey,
-    ) -> Result<[u8;34]> {
+    ) -> Result<[u8; 34]> {
+        if !self.labels.is_empty() {
+            return Err(Error::LabelsNotAllowed(
+                "This function can only be used by wallets without labels".to_owned(),
+            ));
+        }
+
         let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret.serialize(), 0)?;
         let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
         let output_key_bytes = P_n.x_only_public_key().0.serialize();
 
         // hardcoded opcode values for OP_PUSHNUM_1 and OP_PUSHBYTES_32
-        let mut result = [0u8;34];
+        let mut result = [0u8; 34];
         result[..2].copy_from_slice(&[0x51, 0x20]);
 
         result[2..].copy_from_slice(&output_key_bytes);

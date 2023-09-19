@@ -1,6 +1,7 @@
 #[derive(Debug)]
 pub enum Error {
     GenericError(String),
+    LabelsNotAllowed(String),
     InvalidLabel(String),
     InvalidAddress(String),
     InvalidSharedSecret(String),
