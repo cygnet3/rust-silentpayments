@@ -1,11 +1,11 @@
 #![allow(dead_code, non_snake_case)]
-
+mod common;
 mod error;
+
 #[cfg(feature = "receiving")]
 pub mod receiving;
 #[cfg(feature = "sending")]
 pub mod sending;
-mod utils;
 
 pub use crate::error::Error;
 

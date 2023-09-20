@@ -1,18 +1,12 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt,
-    hash::{Hash, Hasher},
 };
 
-use crate::{
-    utils::{calculate_P_n, calculate_t_n, insert_new_key},
-    Error,
-};
+use crate::{Error, Result, common::{calculate_t_n, calculate_P_n}};
 use bech32::ToBase32;
 use bimap::BiMap;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
-
-use crate::Result;
 
 pub const NULL_LABEL: Label = Label { s: Scalar::ZERO };
 
@@ -41,8 +35,8 @@ impl fmt::Debug for Label {
     }
 }
 
-impl Hash for Label {
-    fn hash<H: Hasher>(&self, state: &mut H) {
+impl std::hash::Hash for Label {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let bytes = self.s.to_be_bytes();
         bytes.hash(state);
     }
@@ -293,13 +287,13 @@ impl Receiver {
     pub fn get_script_bytes_from_shared_secret(
         &self,
         ecdh_shared_secret: &PublicKey,
-    ) -> Result<[u8;34]> {
+    ) -> Result<[u8; 34]> {
         let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret.serialize(), 0)?;
         let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
         let output_key_bytes = P_n.x_only_public_key().0.serialize();
 
         // hardcoded opcode values for OP_PUSHNUM_1 and OP_PUSHBYTES_32
-        let mut result = [0u8;34];
+        let mut result = [0u8; 34];
         result[..2].copy_from_slice(&[0x51, 0x20]);
 
         result[2..].copy_from_slice(&output_key_bytes);
@@ -324,6 +318,27 @@ impl Receiver {
 
         bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
     }
+}
+
+fn insert_new_key(
+    mut new_privkey: SecretKey,
+    my_outputs: &mut HashMap<Label, Vec<Scalar>>,
+    label: Option<&Label>,
+) -> Result<()> {
+    let label: &Label = match label {
+        Some(l) => {
+            new_privkey = new_privkey.add_tweak(l.as_inner())?;
+            l
+        }
+        None => &NULL_LABEL,
+    };
+
+    my_outputs
+        .entry(label.to_owned())
+        .or_insert_with(Vec::new)
+        .push(new_privkey.into());
+
+    Ok(())
 }
 
 #[cfg(test)]
