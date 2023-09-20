@@ -5,8 +5,7 @@ use std::collections::HashMap;
 
 use crate::{
     error::Error,
-    utils::calculate_t_n,
-    Result,
+    Result, common::calculate_t_n,
 };
 
 #[derive(Copy, Clone, Debug)]
