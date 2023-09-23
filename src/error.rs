@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug)]
 pub enum Error {
     GenericError(String),
@@ -8,6 +10,22 @@ pub enum Error {
     OutOfRangeError(secp256k1::scalar::OutOfRangeError),
     IOError(std::io::Error),
 }
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self{
+            Error::GenericError(msg) => write!(f, "{}", msg),
+            Error::InvalidLabel(msg) => write!(f, "{}", msg),
+            Error::InvalidAddress(msg) => write!(f, "{}", msg),
+            Error::InvalidSharedSecret(msg) => write!(f, "{}", msg),
+            Error::Secp256k1Error(e) => e.fmt(f),
+            Error::OutOfRangeError(e) => e.fmt(f),
+            Error::IOError(e) => e.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for Error  {}
 
 impl From<hex::FromHexError> for Error {
     fn from(e: hex::FromHexError) -> Self {
