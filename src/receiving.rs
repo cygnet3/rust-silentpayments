@@ -177,7 +177,7 @@ impl Receiver {
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `Result` wrapping a `HashMap` of labels to a set of key tweaks (since the same label may have been paid multiple times in one transaction). The key tweaks can be added to the wallet's spending private key to produce a key that can spend the utxo. A resulting `HashMap` of length 0 implies none of the outputs are owned by us.
+    /// If successful, the function returns a `Result` wrapping a `HashMap` of labels to a map of outputs to key tweaks (since the same label may have been paid multiple times in one transaction). The key tweaks can be added to the wallet's spending private key to produce a key that can spend the utxo. A resulting `HashMap` of length 0 implies none of the outputs are owned by us.
     ///
     /// # Errors
     ///
@@ -189,19 +189,24 @@ impl Receiver {
         &self,
         ecdh_shared_secret: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
-    ) -> Result<HashMap<Label, Vec<Scalar>>> {
+    ) -> Result<HashMap<Label, HashMap<XOnlyPublicKey, Scalar>>> {
         let secp = secp256k1::Secp256k1::new();
 
-        let mut my_outputs: HashMap<Label, Vec<Scalar>> = HashMap::new();
+        let mut found: HashMap<Label, HashMap<XOnlyPublicKey, Scalar>> = HashMap::new();
+        let mut n_found: u32 = 0;
         let mut n: u32 = 0;
-        while my_outputs.len() == n as usize {
+        while n_found == n {
             let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret.serialize(), n)?;
             let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
+            let P_n_xonly = P_n.x_only_public_key().0;
             if pubkeys_to_check
                 .iter()
-                .any(|p| p.eq(&P_n.x_only_public_key().0))
+                .any(|p| p.eq(&P_n_xonly))
             {
-                insert_new_key(t_n, &mut my_outputs, None)?;
+                n_found += 1;
+                found.entry(NULL_LABEL)
+                    .or_insert_with(HashMap::new)
+                    .insert(P_n_xonly, t_n.into());
             } else if !self.labels.is_empty() {
                 // We subtract P_n from each outputs to check and see if match a public key in our label list
                 'outer: for p in &pubkeys_to_check {
@@ -212,11 +217,11 @@ impl Receiver {
 
                     for diff in [even_diff, odd_diff] {
                         if let Some(label) = self.labels.get_by_right(&diff) {
-                            insert_new_key(
-                                t_n,
-                                &mut my_outputs,
-                                Some(label),
-                            )?;
+                            n_found += 1;
+                            let t_n_label = t_n.add_tweak(label.as_inner())?;
+                            found.entry(label.clone())
+                                .or_insert_with(HashMap::new)
+                                .insert(*p, t_n_label.into());
                             break 'outer;
                         }
                     }
@@ -224,7 +229,7 @@ impl Receiver {
             }
             n += 1;
         }
-        Ok(my_outputs)
+        Ok(found)
     }
 
     /// Scans a transaction for outputs belonging to us.
@@ -234,11 +239,11 @@ impl Receiver {
     /// # Arguments
     ///
     /// * `tweak_data` -  The tweak data for the transaction as a PublicKey, the result of elliptic-curve multiplication of `outpoints_hash * A`.
-    /// * `pubkeys_to_check` - A `HashSet` of public keys of all (unspent) taproot output of the transaction.
+    /// * `pubkeys_to_check` - A `Vec` of public keys of all (unspent) taproot output of the transaction.
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `Result` wrapping a `Vec` of private key tweaks. A resulting `Vec` of length 0 implies none of the outputs are owned by us.
+    /// If successful, the function returns a `Result` wrapping a `HashMap` that maps the given outputs to private key tweaks. A resulting `HashMap` of length 0 implies none of the outputs are owned by us.
     ///
     /// # Errors
     ///
@@ -250,7 +255,7 @@ impl Receiver {
         &self,
         tweak_data: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
-    ) -> Result<Vec<Scalar>> {
+    ) -> Result<HashMap<XOnlyPublicKey, Scalar>> {
         if !self.labels.is_empty() {
             return Err(Error::GenericError(
                 "This function should only be used by wallets without labels; use scan_transaction_with_labels instead".to_owned(),
@@ -262,7 +267,7 @@ impl Receiver {
 
         match map.remove(&NULL_LABEL) {
             Some(res) => Ok(res),
-            None => Ok(Vec::new()),
+            None => Ok(HashMap::new()),
         }
     }
 
@@ -318,27 +323,6 @@ impl Receiver {
 
         bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
     }
-}
-
-fn insert_new_key(
-    mut new_privkey: SecretKey,
-    my_outputs: &mut HashMap<Label, Vec<Scalar>>,
-    label: Option<&Label>,
-) -> Result<()> {
-    let label: &Label = match label {
-        Some(l) => {
-            new_privkey = new_privkey.add_tweak(l.as_inner())?;
-            l
-        }
-        None => &NULL_LABEL,
-    };
-
-    my_outputs
-        .entry(label.to_owned())
-        .or_insert_with(Vec::new)
-        .push(new_privkey.into());
-
-    Ok(())
 }
 
 #[cfg(test)]

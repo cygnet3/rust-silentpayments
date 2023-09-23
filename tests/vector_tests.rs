@@ -134,9 +134,9 @@ mod tests {
 
             let key_tweaks: Vec<Scalar> = scanned_outputs_received
                 .into_iter()
-                .flat_map(|(_, list)| {
+                .flat_map(|(_, map)| {
                     let mut ret: Vec<Scalar> = vec![];
-                    for l in list {
+                    for l in map.into_values() {
                         ret.push(l);
                     }
                     ret
