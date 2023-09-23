@@ -779,6 +779,10 @@
                         [
                             "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv",
                             3.0
+                        ],
+                        [
+                            "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv",
+                            4.0
                         ]
                     ]
                 },
@@ -791,6 +795,10 @@
                         [
                             "0a48c6ccc1d516e8244dc0153dc88db45f8f264357667c2057a29ca3c2445d09",
                             3.0
+                        ],
+                        [
+                            "c93be614934391e52261d58e13cf3c0a011b03d19641f540ebd3dc939e289122",
+                            4.0
                         ]
                     ]
                 }
@@ -822,7 +830,8 @@
                         "64f1c7e8992352d18cdbca600b9e1c3a6025050d56a3e1cc833222e4f3b59e18",
                         "0a48c6ccc1d516e8244dc0153dc88db45f8f264357667c2057a29ca3c2445d09",
                         "c58e121044b23cba9b4695052229a9fd9e044b579f92864eb886ae7c99b021c9",
-                        "4b15b75f3f184328c4a2f7c79357481ed06cf3b6f95512d5ed946fdc0b60d62b"
+                        "4b15b75f3f184328c4a2f7c79357481ed06cf3b6f95512d5ed946fdc0b60d62b",
+                        "c93be614934391e52261d58e13cf3c0a011b03d19641f540ebd3dc939e289122"
                     ]
                 },
                 "expected": {
@@ -839,6 +848,11 @@
                             "pub_key": "0a48c6ccc1d516e8244dc0153dc88db45f8f264357667c2057a29ca3c2445d09",
                             "priv_key_tweak": "d39df91bd0e7825bfa1d30096febc5bf6fa7da79d7f25b7b4bea9538cc9a9f7f",
                             "signature": "be5f139f6eaad2d5eb75c6e307defb29925e16d55dbbc12872b0ab6aca38959c0c6a8f3f72bf82e3deb226cb539e117f9db4b04a5efb4e2eb01a86374f5baa12"
+                        },
+                        {
+                            "pub_key": "c93be614934391e52261d58e13cf3c0a011b03d19641f540ebd3dc939e289122",
+                            "priv_key_tweak": "255a912ad6cdebc0842d49fd9f7b2d81ee37d66c62839879371b699010f789b8",
+                            "signature": "d1e7cf9e9991dace88b1924b79139b26bf2ab637bc5e2d84354d0eb3b7022b04397b63aaff03a459686745c83eb1d74dc88bdf86b5709dd531bd8109791ca436"
                         }
                     ]
                 }
