@@ -81,7 +81,7 @@ impl From<Label> for Scalar {
 /// It can be used to scan for transaction outputs belonging to us by using the scan_transaction function.
 /// It optionally supports labels, which it manages internally.
 /// Labels can be added with the add_label function.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Receiver {
     version: u8,
     scan_pubkey: PublicKey,
