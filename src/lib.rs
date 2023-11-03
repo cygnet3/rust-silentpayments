@@ -9,6 +9,8 @@ pub mod sending;
 #[cfg(feature = "utils")]
 pub mod utils;
 
+pub use secp256k1;
+
 pub use crate::error::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
