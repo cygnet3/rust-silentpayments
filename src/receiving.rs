@@ -87,7 +87,7 @@ pub struct Receiver {
     scan_pubkey: PublicKey,
     spend_pubkey: PublicKey,
     labels: BiMap<Label, PublicKey>,
-    is_testnet: bool,
+    pub is_testnet: bool,
 }
 
 impl Receiver {
