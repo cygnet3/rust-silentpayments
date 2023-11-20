@@ -7,6 +7,7 @@ use crate::{Error, Result, common::{calculate_t_n, calculate_P_n}};
 use bech32::ToBase32;
 use bimap::BiMap;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
+use serde::{Serialize, ser::{SerializeStruct, SerializeTuple}};
 
 pub const NULL_LABEL: Label = Label { s: Scalar::ZERO };
 
@@ -88,6 +89,53 @@ pub struct Receiver {
     spend_pubkey: PublicKey,
     labels: BiMap<Label, PublicKey>,
     pub is_testnet: bool,
+}
+
+struct SerializablePubkey([u8;33]);
+
+struct SerializableBiMap<'a>(&'a BiMap<Label, PublicKey>);
+
+impl Serialize for SerializablePubkey {
+    fn serialize<S>(&self, serializer: S) -> std::prelude::v1::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut seq = serializer.serialize_tuple(self.0.len())?;
+        for element in self.0.as_ref() {
+            seq.serialize_element(element)?;
+        }
+        seq.end()
+    }
+}
+
+impl Serialize for SerializableBiMap<'_> {
+    fn serialize<S>(&self, serializer: S) -> std::prelude::v1::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer 
+    {
+        let pairs: Vec<(String, SerializablePubkey)> = self.0.iter()
+            .map(|(label, pubkey)| {
+                (label.as_string(), SerializablePubkey(pubkey.serialize()))
+            })
+            .collect();
+        // Now serialize `pairs` as a vector of tuples
+        pairs.serialize(serializer)
+    }
+}
+
+impl Serialize for Receiver {
+    fn serialize<S>(&self, serializer: S) -> std::prelude::v1::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer 
+    {
+        let mut state = serializer.serialize_struct("Receiver", 5)?;
+        state.serialize_field("version", &self.version)?;
+        state.serialize_field("is_testnet", &self.is_testnet)?;
+        state.serialize_field("scan_pubkey", &SerializablePubkey(self.scan_pubkey.serialize()))?;
+        state.serialize_field("spend_pubkey", &SerializablePubkey(self.spend_pubkey.serialize()))?;
+        state.serialize_field("labels", &SerializableBiMap(&self.labels))?;
+        state.end()
+    }
 }
 
 impl Receiver {
