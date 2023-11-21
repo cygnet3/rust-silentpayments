@@ -7,7 +7,7 @@ use crate::{Error, Result, common::{calculate_t_n, calculate_P_n}};
 use bech32::ToBase32;
 use bimap::BiMap;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
-use serde::{Serialize, ser::{SerializeStruct, SerializeTuple}};
+use serde::{Serialize, ser::{SerializeStruct, SerializeTuple}, Deserializer, Deserialize, de::{Visitor, SeqAccess, self}};
 
 pub const NULL_LABEL: Label = Label { s: Scalar::ZERO };
 
@@ -93,7 +93,7 @@ pub struct Receiver {
 
 struct SerializablePubkey([u8;33]);
 
-struct SerializableBiMap<'a>(&'a BiMap<Label, PublicKey>);
+struct SerializableBiMap(BiMap<Label, PublicKey>);
 
 impl Serialize for SerializablePubkey {
     fn serialize<S>(&self, serializer: S) -> std::prelude::v1::Result<S::Ok, S::Error>
@@ -108,7 +108,38 @@ impl Serialize for SerializablePubkey {
     }
 }
 
-impl Serialize for SerializableBiMap<'_> {
+impl<'de> Deserialize<'de> for SerializablePubkey {
+    fn deserialize<D>(deserializer: D) -> std::prelude::v1::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct SerializablePubkeyVisitor;
+
+        impl<'de> Visitor<'de> for SerializablePubkeyVisitor {
+            type Value = SerializablePubkey;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("an array of 33 bytes")
+            }
+
+            fn visit_seq<V>(self, mut seq: V) -> std::prelude::v1::Result<SerializablePubkey, V::Error>
+            where
+                V: SeqAccess<'de>,
+            {
+                let mut arr = [0u8; 33];
+                for i in 0..33 {
+                    arr[i] = seq.next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(i, &self))?;
+                }
+                Ok(SerializablePubkey(arr))
+            }
+        }
+
+        deserializer.deserialize_tuple(33, SerializablePubkeyVisitor)
+    }
+}
+
+impl Serialize for SerializableBiMap {
     fn serialize<S>(&self, serializer: S) -> std::prelude::v1::Result<S::Ok, S::Error>
     where
         S: serde::Serializer 
@@ -123,6 +154,20 @@ impl Serialize for SerializableBiMap<'_> {
     }
 }
 
+impl<'de> Deserialize<'de> for SerializableBiMap {
+    fn deserialize<D>(deserializer: D) -> std::prelude::v1::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let pairs: Vec<(String, SerializablePubkey)> = Deserialize::deserialize(deserializer)?;
+        let mut bimap: BiMap<Label, PublicKey> = BiMap::new();
+        for (string, ser_pubkey) in pairs {
+            bimap.insert(Label::try_from(string).unwrap(), PublicKey::from_slice(&ser_pubkey.0).unwrap());
+        }
+        Ok(SerializableBiMap(bimap))
+    }
+}
+
 impl Serialize for Receiver {
     fn serialize<S>(&self, serializer: S) -> std::prelude::v1::Result<S::Ok, S::Error>
     where
@@ -133,8 +178,33 @@ impl Serialize for Receiver {
         state.serialize_field("is_testnet", &self.is_testnet)?;
         state.serialize_field("scan_pubkey", &SerializablePubkey(self.scan_pubkey.serialize()))?;
         state.serialize_field("spend_pubkey", &SerializablePubkey(self.spend_pubkey.serialize()))?;
-        state.serialize_field("labels", &SerializableBiMap(&self.labels))?;
+        state.serialize_field("labels", &SerializableBiMap(self.labels.clone()))?;
         state.end()
+    }
+}
+
+#[derive(Deserialize)]
+struct ReceiverHelper {
+    version: u8,
+    is_testnet: bool,
+    scan_pubkey: SerializablePubkey,
+    spend_pubkey: SerializablePubkey,
+    labels: SerializableBiMap,
+}
+
+impl<'de> Deserialize<'de> for Receiver {
+    fn deserialize<D>(deserializer: D) -> std::prelude::v1::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let helper = ReceiverHelper::deserialize(deserializer)?;
+        Ok(Receiver {
+            version: helper.version,
+            is_testnet: helper.is_testnet,
+            scan_pubkey: PublicKey::from_slice(&helper.scan_pubkey.0).unwrap(),
+            spend_pubkey: PublicKey::from_slice(&helper.spend_pubkey.0).unwrap(),
+            labels: helper.labels.0, 
+        })
     }
 }
 
