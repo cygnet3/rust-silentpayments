@@ -3,25 +3,26 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::HashSet,
-        str::FromStr,
-    };
+    use std::{collections::HashSet, str::FromStr};
 
-    use secp256k1::{Secp256k1, SecretKey, Scalar};
+    use secp256k1::{Scalar, Secp256k1, SecretKey};
 
     #[cfg(feature = "receiving")]
     use silentpayments::receiving::Receiver;
 
     #[cfg(feature = "sending")]
     use silentpayments::sending::generate_multiple_recipient_pubkeys;
+    use silentpayments::{
+        utils::receiving::{recipient_calculate_shared_secret, recipient_calculate_tweak_data},
+        utils::sending::sender_calculate_partial_secret,
+        utils::hash_outpoints,
+    };
 
     use crate::common::{
         structs::TestData,
         utils::{
-            self, calculate_tweak_data_for_recipient, decode_input_pub_keys, decode_outpoints,
-            decode_outputs_to_check, decode_priv_keys, decode_recipients, get_a_sum_secret_keys,
-            hash_outpoints, sender_calculate_partial_secret, verify_and_calculate_signatures, receiver_calculate_shared_secret
+            self, decode_input_pub_keys, decode_outputs_to_check, decode_priv_keys,
+            decode_recipients, sender_get_a_sum_secret_keys, verify_and_calculate_signatures,
         },
     };
 
@@ -51,16 +52,15 @@ mod tests {
 
             let input_priv_keys = decode_priv_keys(&given.input_priv_keys);
 
-            let outpoints = decode_outpoints(&given.outpoints);
+            let outpoints = given.outpoints; //decode_outpoints(&given.outpoints);
 
-            let outpoints_hash = hash_outpoints(&outpoints);
+            let outpoints_hash = hash_outpoints(&outpoints).unwrap();
 
             let silent_addresses = decode_recipients(&given.recipients);
 
-            let a_sum = get_a_sum_secret_keys(&input_priv_keys);
+            let a_sum = sender_get_a_sum_secret_keys(&input_priv_keys);
 
-            let partial_secret =
-                sender_calculate_partial_secret(a_sum, outpoints_hash);
+            let partial_secret = sender_calculate_partial_secret(a_sum, outpoints_hash).unwrap();
 
             let outputs =
                 generate_multiple_recipient_pubkeys(silent_addresses, partial_secret).unwrap();
@@ -98,7 +98,7 @@ mod tests {
 
             let outputs_to_check = decode_outputs_to_check(&given.outputs);
 
-            let outpoints = decode_outpoints(&given.outpoints);
+            let outpoints = &given.outpoints;
 
             let input_pub_keys = decode_input_pub_keys(&given.input_pub_keys);
 
@@ -125,8 +125,8 @@ mod tests {
             // to the expected addresses
             assert_eq!(set1, set2);
 
-            let tweak_data = calculate_tweak_data_for_recipient(&input_pub_keys, &outpoints);
-            let shared_secret = receiver_calculate_shared_secret(tweak_data, b_scan);
+            let tweak_data = recipient_calculate_tweak_data(&input_pub_keys, &outpoints).unwrap();
+            let shared_secret = recipient_calculate_shared_secret(tweak_data, b_scan).unwrap();
 
             let scanned_outputs_received = sp_receiver
                 .scan_transaction_with_labels(&shared_secret, outputs_to_check)

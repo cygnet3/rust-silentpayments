@@ -1,12 +1,11 @@
 use std::{
-    collections::HashSet,
     fs::File,
-    io::{Read, Write},
+    io::Read,
     str::FromStr,
 };
 
 use secp256k1::{
-    hashes::{sha256, Hash},
+    hashes::Hash,
     Message, PublicKey, Scalar, SecretKey, XOnlyPublicKey,
 };
 use serde_json::from_str;
@@ -18,22 +17,6 @@ pub fn read_file() -> Vec<TestData> {
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
     from_str(&contents).unwrap()
-}
-
-pub fn decode_outpoints(outpoints: &Vec<(String, u32)>) -> HashSet<([u8; 32], u32)> {
-    outpoints
-        .iter()
-        .map(|(txid_str, vout)| {
-            (
-                hex::decode(txid_str)
-                    .unwrap()
-                    .as_slice()
-                    .try_into()
-                    .unwrap(),
-                *vout,
-            )
-        })
-        .collect()
 }
 
 pub fn decode_priv_keys(input_priv_keys: &Vec<(String, bool)>) -> Vec<(SecretKey, bool)> {
@@ -71,81 +54,6 @@ pub fn decode_recipients(recipients: &Vec<(String, f32)>) -> Vec<String> {
         .collect()
 }
 
-pub fn get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> SecretKey {
-    let secp = secp256k1::Secp256k1::new();
-
-    let mut negated_keys: Vec<SecretKey> = vec![];
-
-    for (key, is_xonly) in input {
-        let (_, parity) = key.x_only_public_key(&secp);
-
-        if *is_xonly && parity == secp256k1::Parity::Odd {
-            negated_keys.push(key.negate());
-        } else {
-            negated_keys.push(key.clone());
-        }
-    }
-
-    let (head, tail) = negated_keys.split_first().unwrap();
-
-    let result: SecretKey = tail
-        .iter()
-        .fold(*head, |acc, &item| acc.add_tweak(&item.into()).unwrap());
-
-    result
-}
-
-pub fn get_A_sum_public_keys(input: &Vec<PublicKey>) -> PublicKey {
-    let keys_refs: &Vec<&PublicKey> = &input.iter().collect();
-
-    PublicKey::combine_keys(keys_refs).unwrap()
-}
-
-pub fn calculate_tweak_data_for_recipient(
-    input_pub_keys: &Vec<PublicKey>,
-    outpoints: &HashSet<([u8; 32], u32)>,
-) -> PublicKey {
-    let secp = secp256k1::Secp256k1::new();
-    let A_sum = get_A_sum_public_keys(input_pub_keys);
-    let outpoints_hash = hash_outpoints(outpoints);
-
-    A_sum.mul_tweak(&secp, &outpoints_hash).unwrap()
-}
-
-pub fn sender_calculate_partial_secret(a_sum: SecretKey, outpoints_hash: Scalar) -> SecretKey {
-    a_sum.mul_tweak(&outpoints_hash).unwrap()
-}
-
-pub fn receiver_calculate_shared_secret(tweak_data: PublicKey, b_scan: SecretKey) -> PublicKey {
-    let secp = secp256k1::Secp256k1::new();
-
-    tweak_data.mul_tweak(&secp, &b_scan.into()).unwrap()
-}
-
-pub fn hash_outpoints(sending_data: &HashSet<([u8; 32], u32)>) -> Scalar {
-    let mut outpoints: Vec<Vec<u8>> = vec![];
-
-    for outpoint in sending_data {
-        let txid = outpoint.0;
-        let vout = outpoint.1;
-
-        let mut bytes: Vec<u8> = Vec::new();
-        bytes.extend_from_slice(&txid);
-        bytes.reverse();
-        bytes.extend_from_slice(&vout.to_le_bytes());
-        outpoints.push(bytes);
-    }
-    outpoints.sort();
-
-    let mut engine = sha256::HashEngine::default();
-
-    for v in outpoints {
-        engine.write_all(&v).unwrap();
-    }
-
-    Scalar::from_be_bytes(sha256::Hash::from_engine(engine).into_inner()).unwrap()
-}
-
 pub fn verify_and_calculate_signatures(
     key_tweaks: Vec<Scalar>,
     b_spend: SecretKey,
@@ -177,4 +85,29 @@ pub fn verify_and_calculate_signatures(
         });
     }
     Ok(res)
+}
+
+
+pub fn sender_get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> SecretKey {
+    let secp = secp256k1::Secp256k1::new();
+
+    let mut negated_keys: Vec<SecretKey> = vec![];
+
+    for (key, is_xonly) in input {
+        let (_, parity) = key.x_only_public_key(&secp);
+
+        if *is_xonly && parity == secp256k1::Parity::Odd {
+            negated_keys.push(key.negate());
+        } else {
+            negated_keys.push(key.clone());
+        }
+    }
+
+    let (head, tail) = negated_keys.split_first().unwrap();
+
+    let result: SecretKey = tail
+        .iter()
+        .fold(*head, |acc, &item| acc.add_tweak(&item.into()).unwrap());
+
+    result
 }
