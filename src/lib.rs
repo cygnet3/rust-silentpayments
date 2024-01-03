@@ -6,6 +6,10 @@ mod error;
 pub mod receiving;
 #[cfg(feature = "sending")]
 pub mod sending;
+#[cfg(feature = "utils")]
+pub mod utils;
+
+pub use secp256k1;
 
 pub use crate::error::Error;
 
