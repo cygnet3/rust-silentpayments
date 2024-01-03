@@ -52,7 +52,7 @@ mod tests {
 
             let input_priv_keys = decode_priv_keys(&given.input_priv_keys);
 
-            let outpoints = given.outpoints; //decode_outpoints(&given.outpoints);
+            let outpoints = given.outpoints;
 
             let outpoints_hash = hash_outpoints(&outpoints).unwrap();
 
