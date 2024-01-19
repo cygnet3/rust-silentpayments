@@ -1,10 +1,9 @@
 #![allow(non_snake_case)]
 mod common;
-
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, str::FromStr};
-
+    use std::{collections::HashSet, str::FromStr, io::Cursor};
+    use silentpayments::utils::LabelHash;
     use secp256k1::{Scalar, Secp256k1, SecretKey};
 
     #[cfg(feature = "receiving")]
@@ -21,8 +20,9 @@ mod tests {
     use crate::common::{
         structs::TestData,
         utils::{
-            self, decode_input_pub_keys, decode_outputs_to_check, decode_priv_keys,
+            self, decode_outputs_to_check, deser_string_vector,
             decode_recipients, sender_get_a_sum_secret_keys, verify_and_calculate_signatures,
+            get_pubkey_from_input, is_p2tr, VinData,
         },
     };
 
@@ -44,28 +44,52 @@ mod tests {
         #[cfg(feature = "sending")]
         for sendingtest in test_case.sending {
             let given = sendingtest.given;
-
             let expected = sendingtest.expected.outputs;
-
             let expected_output_addresses: HashSet<String> =
                 expected.iter().map(|(x, _)| x.into()).collect();
+            let outpoints: Vec<(String, u32)> = given.vin.iter().map(|vin| (vin.txid.clone(), vin.vout)).collect();
+            let mut tmp_input_priv_keys = Vec::new();
+            for input in given.vin {
 
-            let input_priv_keys = decode_priv_keys(&given.input_priv_keys);
+                let script_sig = hex::decode(&input.scriptSig).unwrap();
+                let txinwitness_bytes = hex::decode(&input.txinwitness).unwrap();
+                let mut cursor = Cursor::new(&txinwitness_bytes);
+                let txinwitness = deser_string_vector(&mut cursor).unwrap();
+                let script_pub_key = hex::decode(&input.prevout.scriptPubKey.hex).unwrap();
 
-            let outpoints = given.outpoints;
+                let vin_data = VinData {
+                    script_sig,
+                    txinwitness,
+                    script_pub_key,
+                };
+                match get_pubkey_from_input(&vin_data) {
+                    Ok(_pubkey) => {
+                        match _pubkey {
+                            Some(_pubkey) => tmp_input_priv_keys.push((SecretKey::from_str(&input.private_key).unwrap(), is_p2tr(&vin_data.script_pub_key))),
+                            None => continue,
+                        }
+                    },
+                    Err(e) => panic!("Problem parsing the input: {:?}", e),
+                }
+            }
 
-            let outpoints_hash = hash_outpoints(&outpoints).unwrap();
+            let input_priv_keys = tmp_input_priv_keys;
 
+            let a_sum = sender_get_a_sum_secret_keys(&input_priv_keys);
+            let secp = Secp256k1::new();
+            let A_sum = a_sum.public_key(&secp);
+
+            let input_hash = hash_outpoints(&outpoints, A_sum).unwrap();
             let silent_addresses = decode_recipients(&given.recipients);
 
             let a_sum = sender_get_a_sum_secret_keys(&input_priv_keys);
 
-            let partial_secret = sender_calculate_partial_secret(a_sum, outpoints_hash).unwrap();
+            let partial_secret = sender_calculate_partial_secret(a_sum, input_hash).unwrap();
 
             let outputs =
                 generate_multiple_recipient_pubkeys(silent_addresses, partial_secret).unwrap();
 
-            for output_pubkeys in &outputs {
+             for output_pubkeys in &outputs {
                 for pubkey in output_pubkeys.1 {
                     // TODO check if this is always true
                     sending_outputs.insert(hex::encode(pubkey.serialize()));
@@ -88,8 +112,8 @@ mod tests {
             // i.e. all the generated outputs are present
             assert!(sending_outputs.is_subset(&receiving_outputs));
 
-            let b_scan = SecretKey::from_str(&given.scan_priv_key).unwrap();
-            let b_spend = SecretKey::from_str(&given.spend_priv_key).unwrap();
+            let b_scan = SecretKey::from_str(&given.key_material.scan_priv_key).unwrap();
+            let b_spend = SecretKey::from_str(&given.key_material.spend_priv_key).unwrap();
             let secp = Secp256k1::new();
             let B_spend = b_spend.public_key(&secp);
             let B_scan = b_scan.public_key(&secp);
@@ -98,13 +122,37 @@ mod tests {
 
             let outputs_to_check = decode_outputs_to_check(&given.outputs);
 
-            let outpoints = &given.outpoints;
+            let outpoints = given.vin.iter().map(|vin| (vin.txid.clone(), vin.vout)).collect();
+            let mut tmp_input_pub_keys = Vec::new();
+            for input in given.vin {
 
-            let input_pub_keys = decode_input_pub_keys(&given.input_pub_keys);
+                let script_sig = hex::decode(&input.scriptSig).unwrap();
+                let txinwitness_bytes = hex::decode(&input.txinwitness).unwrap();
+                let mut cursor = Cursor::new(&txinwitness_bytes);
+                let txinwitness = deser_string_vector(&mut cursor).unwrap();
+                let script_pub_key = hex::decode(&input.prevout.scriptPubKey.hex).unwrap();
 
-            for (_, label) in &given.labels {
-                let label = label[..].try_into().unwrap();
-                sp_receiver.add_label(label).unwrap();
+                let vin_data = VinData {
+                    script_sig,
+                    txinwitness,
+                    script_pub_key,
+                };
+                match get_pubkey_from_input(&vin_data) {
+                    Ok(pubkey) => {
+                        match pubkey {
+                            Some(pubkey) => tmp_input_pub_keys.push(pubkey),
+                            None => continue,
+                        }
+                    },
+                    Err(e) => panic!("Problem parsing the input: {:?}", e),
+                }
+            }
+
+            let input_pub_keys = tmp_input_pub_keys;
+
+            for label_int in &given.labels {
+                let label = LabelHash::from_b_scan_and_m(b_scan, *label_int).to_scalar();
+                sp_receiver.add_label(label.into()).unwrap();
             }
 
             let mut receiving_addresses: HashSet<String> = HashSet::new();

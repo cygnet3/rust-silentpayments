@@ -37,7 +37,7 @@ impl SilentPaymentAddress {
             version,
         })
     }
-    
+
     pub fn get_scan_key(&self) -> PublicKey {
         self.scan_pubkey
     }
@@ -164,7 +164,7 @@ pub fn generate_multiple_recipient_pubkeys(
         let (ecdh_shared_secret, recipients) = group;
 
         for addr in recipients {
-            let t_n = calculate_t_n(&ecdh_shared_secret.serialize(), n)?;
+            let t_n = calculate_t_n(&ecdh_shared_secret, n)?;
 
             let res = t_n.public_key(&secp);
             let reskey = res.combine(&addr.m_pubkey)?;
