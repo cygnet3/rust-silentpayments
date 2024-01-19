@@ -1,8 +1,6 @@
 #![allow(non_snake_case)]
 use serde::Deserialize;
 
-use std::collections::HashMap;
-
 #[derive(Debug, Deserialize)]
 pub struct TestData {
     pub comment: String,
@@ -12,19 +10,40 @@ pub struct TestData {
 
 #[derive(Debug, Deserialize)]
 pub struct ReceivingData {
-    pub supports_labels: bool,
     pub given: ReceivingDataGiven,
     pub expected: ReceivingDataExpected,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ReceivingDataGiven {
-    pub outpoints: Vec<(String, u32)>,
-    pub input_pub_keys: Vec<String>,
-    pub bip32_seed: String,
+pub struct ReceivingKeyMaterial {
     pub scan_priv_key: String,
     pub spend_priv_key: String,
-    pub labels: HashMap<String, String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HexStr {
+    pub hex: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ScriptPubKey {
+    pub scriptPubKey: HexStr,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReceivingVinData {
+    pub txid: String,
+    pub vout: u32,
+    pub scriptSig: String,
+    pub txinwitness: String,
+    pub prevout: ScriptPubKey,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ReceivingDataGiven {
+    pub vin: Vec<ReceivingVinData>,
+    pub key_material: ReceivingKeyMaterial,
+    pub labels: Vec<u32>,
     pub outputs: Vec<String>,
 }
 
@@ -42,9 +61,18 @@ pub struct SendingData {
 
 #[derive(Debug, Deserialize)]
 pub struct SendingDataGiven {
-    pub outpoints: Vec<(String, u32)>,
-    pub input_priv_keys: Vec<(String, bool)>,
+    pub vin: Vec<SendingVinData>,
     pub recipients: Vec<(String, f32)>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SendingVinData {
+    pub txid: String,
+    pub vout: u32,
+    pub scriptSig: String,
+    pub txinwitness: String,
+    pub prevout: ScriptPubKey,
+    pub private_key: String,
 }
 
 #[derive(Debug, Deserialize)]

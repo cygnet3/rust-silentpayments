@@ -7,7 +7,7 @@ pub fn recipient_calculate_tweak_data(
 ) -> Result<PublicKey> {
     let secp = secp256k1::Secp256k1::new();
     let A_sum = recipient_get_A_sum_public_keys(input_pub_keys);
-    let outpoints_hash = hash_outpoints(outpoints)?;
+    let outpoints_hash = hash_outpoints(outpoints, A_sum)?;
 
     Ok(A_sum.mul_tweak(&secp, &outpoints_hash)?)
 }

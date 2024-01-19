@@ -314,7 +314,7 @@ impl Receiver {
         let mut n_found: u32 = 0;
         let mut n: u32 = 0;
         while n_found == n {
-            let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret.serialize(), n)?;
+            let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret, n)?;
             let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
             let P_n_xonly = P_n.x_only_public_key().0;
             if pubkeys_to_check
@@ -411,7 +411,7 @@ impl Receiver {
         &self,
         ecdh_shared_secret: &PublicKey,
     ) -> Result<[u8; 34]> {
-        let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret.serialize(), 0)?;
+        let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret, 0)?;
         let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
         let output_key_bytes = P_n.x_only_public_key().0.serialize();
 

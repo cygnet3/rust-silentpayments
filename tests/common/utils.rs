@@ -13,6 +13,48 @@ use serde_json::from_str;
 use super::structs::{OutputWithSignature, TestData};
 
 use silentpayments::Error;
+use std::io::{self, Cursor};
+use std::convert::TryInto;
+
+fn deser_compact_size(f: &mut Cursor<&Vec<u8>>) -> io::Result<u64> {
+    let mut buf = [0; 8];
+    f.read_exact(&mut buf[..1])?;
+    match buf[0] {
+        0xfd => {
+            f.read_exact(&mut buf[..2])?;
+            Ok(u16::from_le_bytes(buf[..2].try_into().unwrap()) as u64)
+        },
+        0xfe => {
+            f.read_exact(&mut buf[..4])?;
+            Ok(u32::from_le_bytes(buf[..4].try_into().unwrap()) as u64)
+        },
+        0xff => {
+            f.read_exact(&mut buf)?;
+            Ok(u64::from_le_bytes(buf))
+        },
+        _ => Ok(buf[0] as u64),
+    }
+}
+
+fn deser_string(f: &mut Cursor<&Vec<u8>>) -> io::Result<Vec<u8>> {
+    let size = deser_compact_size(f)? as usize;
+    let mut buf = vec![0; size];
+    f.read_exact(&mut buf)?;
+    Ok(buf)
+}
+
+pub fn deser_string_vector(f: &mut Cursor<&Vec<u8>>) -> io::Result<Vec<Vec<u8>>> {
+    // Check if the buffer is empty before attempting to deserialize the size
+    if f.get_ref().is_empty() {
+        return Ok(Vec::new()); // Return an empty vector if the buffer is empty
+    }
+    let size = deser_compact_size(f)? as usize;
+    let mut vec = Vec::with_capacity(size);
+    for _ in 0..size {
+        vec.push(deser_string(f)?);
+    }
+    Ok(vec)
+}
 
 // ** Putting all the pubkey extraction logic in the test utils for now. **
 // NUMS_H (defined in BIP340)
@@ -140,27 +182,6 @@ pub fn read_file() -> Vec<TestData> {
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
     from_str(&contents).unwrap()
-}
-
-pub fn decode_priv_keys(input_priv_keys: &Vec<(String, bool)>) -> Vec<(SecretKey, bool)> {
-    input_priv_keys
-        .iter()
-        .map(|(keystr, x_only)| (SecretKey::from_str(&keystr).unwrap(), *x_only))
-        .collect()
-}
-
-pub fn decode_input_pub_keys(input_pub_keys: &Vec<String>) -> Vec<PublicKey> {
-    input_pub_keys
-        .iter()
-        .map(|x| match PublicKey::from_str(&x) {
-            Ok(key) => key,
-            Err(_) => {
-                // we always assume even pairing for input public keys if they are omitted
-                let x_only_public_key = XOnlyPublicKey::from_str(&x).unwrap();
-                PublicKey::from_x_only_public_key(x_only_public_key, secp256k1::Parity::Even)
-            }
-        })
-        .collect()
 }
 
 pub fn decode_outputs_to_check(outputs: &Vec<String>) -> Vec<XOnlyPublicKey> {

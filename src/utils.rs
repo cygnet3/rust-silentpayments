@@ -1,7 +1,5 @@
-use std::io::Write;
-
 use crate::Error;
-use bitcoin_hashes::{sha256t_hash_newtype, sha256, Hash, HashEngine};
+use bitcoin_hashes::{sha256t_hash_newtype, Hash, HashEngine};
 use secp256k1::{
     PublicKey,
     Scalar,
@@ -39,11 +37,11 @@ sha256t_hash_newtype! {
 
 impl InputsHash {
     pub fn from_outpoint_and_A_sum(
-        smallest_outpoint: &Vec<u8>,
+        smallest_outpoint: &[u8;36],
         A_sum: &PublicKey,
     ) -> InputsHash {
         let mut eng = InputsHash::engine();
-        eng.input(&smallest_outpoint);
+        eng.input(smallest_outpoint);
         eng.input(&A_sum.serialize());
         InputsHash::from_engine(eng)
     }
@@ -81,29 +79,34 @@ impl SharedSecretHash {
     }
 }
 
-pub fn hash_outpoints(sending_data: &Vec<(String, u32)>) -> Result<Scalar, Error> {
-    let mut outpoints: Vec<Vec<u8>> = vec![];
+pub fn hash_outpoints(outpoints_data: &[(String, u32)], A_sum: PublicKey) -> Result<Scalar, Error> {
+    if outpoints_data.is_empty() {return Err(Error::GenericError("No outpoints provided".to_owned()))}
 
-    for outpoint in sending_data {
-        let mut bytes: Vec<u8> = hex::decode(outpoint.0.as_str())?;
+    let mut outpoints: Vec<[u8;36]> = Vec::with_capacity(outpoints_data.len());
+
+    // should probably just use an OutPoints type properly at some point
+    for (txid, vout) in outpoints_data {
+        let mut bytes: Vec<u8> = hex::decode(txid.as_str())?;
+
+        if bytes.len() != 32 {return Err(Error::GenericError(format!("Invalid outpoint hex representation: {}", txid)))}
 
         // txid in string format is big endian and we need little endian
         bytes.reverse();
 
-        bytes.extend_from_slice(&outpoint.1.to_le_bytes());
-        outpoints.push(bytes);
+        let mut buffer = [0u8;36];
+
+        buffer[..32].copy_from_slice(&bytes);
+        buffer[32..].copy_from_slice(&vout.to_le_bytes());
+        outpoints.push(buffer);
     }
 
     // sort outpoints
-    outpoints.sort();
+    outpoints.sort_unstable();
 
-    let mut engine = sha256::HashEngine::default();
-
-    for v in outpoints {
-        engine.write_all(&v)?;
+    if let Some(smallest_outpoint) = outpoints.get(0) {
+        Ok(InputsHash::from_outpoint_and_A_sum(&smallest_outpoint, &A_sum).to_scalar())
+    } else {
+        // This should never happen
+        Err(Error::GenericError("Unexpected empty outpoints vector".to_owned()))
     }
-
-    Ok(Scalar::from_be_bytes(
-        sha256::Hash::from_engine(engine).to_byte_array(),
-    )?)
 }
