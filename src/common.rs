@@ -1,7 +1,7 @@
 use secp256k1::{
-    hashes::{sha256, Hash},
     PublicKey, Scalar, Secp256k1, SecretKey,
 };
+use bitcoin_hashes::{sha256, Hash};
 use crate::Result;
 
 pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<SecretKey> {
@@ -9,7 +9,7 @@ pub(crate) fn calculate_t_n(ecdh_shared_secret: &[u8; 33], n: u32) -> Result<Sec
     bytes[..33].copy_from_slice(ecdh_shared_secret);
     bytes[33..].copy_from_slice(&n.to_be_bytes());
 
-    let hash = sha256::Hash::hash(&bytes).into_inner();
+    let hash = sha256::Hash::hash(&bytes).to_byte_array();
     let sk = SecretKey::from_slice(&hash)?;
 
     Ok(sk)
