@@ -1,8 +1,8 @@
 use std::io::Write;
 
 use crate::Result;
+use bitcoin_hashes::{sha256, Hash};
 use secp256k1::{
-    hashes::{sha256, Hash},
     Scalar,
 };
 
@@ -32,6 +32,6 @@ pub fn hash_outpoints(sending_data: &Vec<(String, u32)>) -> Result<Scalar> {
     }
 
     Ok(Scalar::from_be_bytes(
-        sha256::Hash::from_engine(engine).into_inner(),
+        sha256::Hash::from_engine(engine).to_byte_array(),
     )?)
 }
