@@ -188,7 +188,7 @@ mod tests {
             let shared_secret = recipient_calculate_shared_secret(tweak_data, b_scan).unwrap();
 
             let scanned_outputs_received = sp_receiver
-                .scan_transaction_with_labels(&shared_secret, outputs_to_check)
+                .scan_transaction(&shared_secret, outputs_to_check)
                 .unwrap();
 
             let key_tweaks: Vec<Scalar> = scanned_outputs_received
