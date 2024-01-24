@@ -14,7 +14,7 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self{
+        match self {
             Error::GenericError(msg) => write!(f, "{}", msg),
             Error::InvalidLabel(msg) => write!(f, "{}", msg),
             Error::InvalidAddress(msg) => write!(f, "{}", msg),
@@ -27,7 +27,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error  {}
+impl std::error::Error for Error {}
 
 impl From<hex::FromHexError> for Error {
     fn from(e: hex::FromHexError) -> Self {

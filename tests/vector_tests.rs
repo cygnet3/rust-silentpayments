@@ -2,9 +2,9 @@
 mod common;
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, str::FromStr, io::Cursor};
-    use silentpayments::utils::LabelHash;
     use secp256k1::{Scalar, Secp256k1, SecretKey};
+    use silentpayments::utils::LabelHash;
+    use std::{collections::HashSet, io::Cursor, str::FromStr};
 
     #[cfg(feature = "receiving")]
     use silentpayments::receiving::Receiver;
@@ -12,17 +12,17 @@ mod tests {
     #[cfg(feature = "sending")]
     use silentpayments::sending::generate_multiple_recipient_pubkeys;
     use silentpayments::{
+        utils::hash_outpoints,
         utils::receiving::{recipient_calculate_shared_secret, recipient_calculate_tweak_data},
         utils::sending::sender_calculate_partial_secret,
-        utils::hash_outpoints,
     };
 
     use crate::common::{
         structs::TestData,
         utils::{
-            self, decode_outputs_to_check, deser_string_vector,
-            decode_recipients, sender_get_a_sum_secret_keys, verify_and_calculate_signatures,
-            get_pubkey_from_input, is_p2tr, VinData,
+            self, decode_outputs_to_check, decode_recipients, deser_string_vector,
+            get_pubkey_from_input, is_p2tr, sender_get_a_sum_secret_keys,
+            verify_and_calculate_signatures, VinData,
         },
     };
 
@@ -47,10 +47,13 @@ mod tests {
             let expected = sendingtest.expected.outputs;
             let expected_output_addresses: HashSet<String> =
                 expected.iter().map(|(x, _)| x.into()).collect();
-            let outpoints: Vec<(String, u32)> = given.vin.iter().map(|vin| (vin.txid.clone(), vin.vout)).collect();
+            let outpoints: Vec<(String, u32)> = given
+                .vin
+                .iter()
+                .map(|vin| (vin.txid.clone(), vin.vout))
+                .collect();
             let mut tmp_input_priv_keys = Vec::new();
             for input in given.vin {
-
                 let script_sig = hex::decode(&input.scriptSig).unwrap();
                 let txinwitness_bytes = hex::decode(&input.txinwitness).unwrap();
                 let mut cursor = Cursor::new(&txinwitness_bytes);
@@ -63,11 +66,12 @@ mod tests {
                     script_pub_key,
                 };
                 match get_pubkey_from_input(&vin_data) {
-                    Ok(_pubkey) => {
-                        match _pubkey {
-                            Some(_pubkey) => tmp_input_priv_keys.push((SecretKey::from_str(&input.private_key).unwrap(), is_p2tr(&vin_data.script_pub_key))),
-                            None => continue,
-                        }
+                    Ok(_pubkey) => match _pubkey {
+                        Some(_pubkey) => tmp_input_priv_keys.push((
+                            SecretKey::from_str(&input.private_key).unwrap(),
+                            is_p2tr(&vin_data.script_pub_key),
+                        )),
+                        None => continue,
                     },
                     Err(e) => panic!("Problem parsing the input: {:?}", e),
                 }
@@ -89,7 +93,7 @@ mod tests {
             let outputs =
                 generate_multiple_recipient_pubkeys(silent_addresses, partial_secret).unwrap();
 
-             for output_pubkeys in &outputs {
+            for output_pubkeys in &outputs {
                 for pubkey in output_pubkeys.1 {
                     // TODO check if this is always true
                     sending_outputs.insert(hex::encode(pubkey.serialize()));
@@ -122,10 +126,13 @@ mod tests {
 
             let outputs_to_check = decode_outputs_to_check(&given.outputs);
 
-            let outpoints = given.vin.iter().map(|vin| (vin.txid.clone(), vin.vout)).collect();
+            let outpoints = given
+                .vin
+                .iter()
+                .map(|vin| (vin.txid.clone(), vin.vout))
+                .collect();
             let mut tmp_input_pub_keys = Vec::new();
             for input in given.vin {
-
                 let script_sig = hex::decode(&input.scriptSig).unwrap();
                 let txinwitness_bytes = hex::decode(&input.txinwitness).unwrap();
                 let mut cursor = Cursor::new(&txinwitness_bytes);
@@ -138,11 +145,9 @@ mod tests {
                     script_pub_key,
                 };
                 match get_pubkey_from_input(&vin_data) {
-                    Ok(pubkey) => {
-                        match pubkey {
-                            Some(pubkey) => tmp_input_pub_keys.push(pubkey),
-                            None => continue,
-                        }
+                    Ok(pubkey) => match pubkey {
+                        Some(pubkey) => tmp_input_pub_keys.push(pubkey),
+                        None => continue,
                     },
                     Err(e) => panic!("Problem parsing the input: {:?}", e),
                 }

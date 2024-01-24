@@ -3,11 +3,18 @@ use std::{
     fmt,
 };
 
-use crate::{Error, Result, common::{calculate_t_n, calculate_P_n}};
+use crate::{
+    common::{calculate_P_n, calculate_t_n},
+    Error, Result,
+};
 use bech32::ToBase32;
 use bimap::BiMap;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
-use serde::{Serialize, ser::{SerializeStruct, SerializeTuple}, Deserializer, Deserialize, de::{Visitor, SeqAccess, self}};
+use serde::{
+    de::{self, SeqAccess, Visitor},
+    ser::{SerializeStruct, SerializeTuple},
+    Deserialize, Deserializer, Serialize,
+};
 
 pub const NULL_LABEL: Label = Label { s: Scalar::ZERO };
 
@@ -91,7 +98,7 @@ pub struct Receiver {
     pub is_testnet: bool,
 }
 
-struct SerializablePubkey([u8;33]);
+struct SerializablePubkey([u8; 33]);
 
 struct SerializableBiMap(BiMap<Label, PublicKey>);
 
@@ -122,13 +129,17 @@ impl<'de> Deserialize<'de> for SerializablePubkey {
                 formatter.write_str("an array of 33 bytes")
             }
 
-            fn visit_seq<V>(self, mut seq: V) -> std::prelude::v1::Result<SerializablePubkey, V::Error>
+            fn visit_seq<V>(
+                self,
+                mut seq: V,
+            ) -> std::prelude::v1::Result<SerializablePubkey, V::Error>
             where
                 V: SeqAccess<'de>,
             {
                 let mut arr = [0u8; 33];
                 for i in 0..33 {
-                    arr[i] = seq.next_element()?
+                    arr[i] = seq
+                        .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(i, &self))?;
                 }
                 Ok(SerializablePubkey(arr))
@@ -142,12 +153,12 @@ impl<'de> Deserialize<'de> for SerializablePubkey {
 impl Serialize for SerializableBiMap {
     fn serialize<S>(&self, serializer: S) -> std::prelude::v1::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer 
+        S: serde::Serializer,
     {
-        let pairs: Vec<(String, SerializablePubkey)> = self.0.iter()
-            .map(|(label, pubkey)| {
-                (label.as_string(), SerializablePubkey(pubkey.serialize()))
-            })
+        let pairs: Vec<(String, SerializablePubkey)> = self
+            .0
+            .iter()
+            .map(|(label, pubkey)| (label.as_string(), SerializablePubkey(pubkey.serialize())))
             .collect();
         // Now serialize `pairs` as a vector of tuples
         pairs.serialize(serializer)
@@ -162,7 +173,10 @@ impl<'de> Deserialize<'de> for SerializableBiMap {
         let pairs: Vec<(String, SerializablePubkey)> = Deserialize::deserialize(deserializer)?;
         let mut bimap: BiMap<Label, PublicKey> = BiMap::new();
         for (string, ser_pubkey) in pairs {
-            bimap.insert(Label::try_from(string).unwrap(), PublicKey::from_slice(&ser_pubkey.0).unwrap());
+            bimap.insert(
+                Label::try_from(string).unwrap(),
+                PublicKey::from_slice(&ser_pubkey.0).unwrap(),
+            );
         }
         Ok(SerializableBiMap(bimap))
     }
@@ -171,13 +185,19 @@ impl<'de> Deserialize<'de> for SerializableBiMap {
 impl Serialize for Receiver {
     fn serialize<S>(&self, serializer: S) -> std::prelude::v1::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer 
+        S: serde::Serializer,
     {
         let mut state = serializer.serialize_struct("Receiver", 5)?;
         state.serialize_field("version", &self.version)?;
         state.serialize_field("is_testnet", &self.is_testnet)?;
-        state.serialize_field("scan_pubkey", &SerializablePubkey(self.scan_pubkey.serialize()))?;
-        state.serialize_field("spend_pubkey", &SerializablePubkey(self.spend_pubkey.serialize()))?;
+        state.serialize_field(
+            "scan_pubkey",
+            &SerializablePubkey(self.scan_pubkey.serialize()),
+        )?;
+        state.serialize_field(
+            "spend_pubkey",
+            &SerializablePubkey(self.spend_pubkey.serialize()),
+        )?;
         state.serialize_field("labels", &SerializableBiMap(self.labels.clone()))?;
         state.end()
     }
@@ -203,7 +223,7 @@ impl<'de> Deserialize<'de> for Receiver {
             is_testnet: helper.is_testnet,
             scan_pubkey: PublicKey::from_slice(&helper.scan_pubkey.0).unwrap(),
             spend_pubkey: PublicKey::from_slice(&helper.spend_pubkey.0).unwrap(),
-            labels: helper.labels.0, 
+            labels: helper.labels.0,
         })
     }
 }
@@ -317,12 +337,10 @@ impl Receiver {
             let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret, n)?;
             let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
             let P_n_xonly = P_n.x_only_public_key().0;
-            if pubkeys_to_check
-                .iter()
-                .any(|p| p.eq(&P_n_xonly))
-            {
+            if pubkeys_to_check.iter().any(|p| p.eq(&P_n_xonly)) {
                 n_found += 1;
-                found.entry(NULL_LABEL)
+                found
+                    .entry(NULL_LABEL)
                     .or_insert_with(HashMap::new)
                     .insert(P_n_xonly, t_n.into());
             } else if !self.labels.is_empty() {
@@ -337,7 +355,8 @@ impl Receiver {
                         if let Some(label) = self.labels.get_by_right(&diff) {
                             n_found += 1;
                             let t_n_label = t_n.add_tweak(label.as_inner())?;
-                            found.entry(label.clone())
+                            found
+                                .entry(label.clone())
                                 .or_insert_with(HashMap::new)
                                 .insert(*p, t_n_label.into());
                             break 'outer;
