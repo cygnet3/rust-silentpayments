@@ -34,6 +34,6 @@ The library also supports labels. You can optionally add labels before scanning 
 
 ## Tests
 
-The `tests/resources` folder contains a copy of the test vectors as of August 4th 2023.
+The `tests/resources` folder contains a copy of the test vectors as of January 24th 2024.
 
 You can test the code using the test vectors by running `cargo test`.
