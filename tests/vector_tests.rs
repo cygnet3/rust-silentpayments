@@ -122,7 +122,9 @@ mod tests {
             let B_spend = b_spend.public_key(&secp);
             let B_scan = b_scan.public_key(&secp);
 
-            let mut sp_receiver = Receiver::new(0, B_scan, B_spend, IS_TESTNET).unwrap();
+            let change_label = LabelHash::from_b_scan_and_m(b_scan, 0).to_scalar();
+            let mut sp_receiver =
+                Receiver::new(0, B_scan, B_spend, change_label.into(), IS_TESTNET).unwrap();
 
             let outputs_to_check = decode_outputs_to_check(&given.outputs);
 
@@ -169,6 +171,10 @@ mod tests {
             for label in &labels {
                 receiving_addresses
                     .insert(sp_receiver.get_receiving_address_for_label(label).unwrap());
+            }
+
+            if !&given.labels.iter().any(|l| *l == 0) {
+                receiving_addresses.remove(&sp_receiver.get_change_address());
             }
 
             let set1: HashSet<_> = receiving_addresses.iter().collect();

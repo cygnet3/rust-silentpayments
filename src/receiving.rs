@@ -16,8 +16,6 @@ use serde::{
     Deserialize, Deserializer, Serialize,
 };
 
-pub const NULL_LABEL: Label = Label { s: Scalar::ZERO };
-
 #[derive(Eq, PartialEq, Clone)]
 pub struct Label {
     s: Scalar,
@@ -94,6 +92,7 @@ pub struct Receiver {
     version: u8,
     scan_pubkey: PublicKey,
     spend_pubkey: PublicKey,
+    change_label: Label, // To be able to tell which label is the change
     labels: BiMap<Label, PublicKey>,
     pub is_testnet: bool,
 }
@@ -198,6 +197,7 @@ impl Serialize for Receiver {
             "spend_pubkey",
             &SerializablePubkey(self.spend_pubkey.serialize()),
         )?;
+        state.serialize_field("change_label", &self.change_label.as_string())?;
         state.serialize_field("labels", &SerializableBiMap(self.labels.clone()))?;
         state.end()
     }
@@ -209,6 +209,7 @@ struct ReceiverHelper {
     is_testnet: bool,
     scan_pubkey: SerializablePubkey,
     spend_pubkey: SerializablePubkey,
+    change_label: String,
     labels: SerializableBiMap,
 }
 
@@ -223,6 +224,7 @@ impl<'de> Deserialize<'de> for Receiver {
             is_testnet: helper.is_testnet,
             scan_pubkey: PublicKey::from_slice(&helper.scan_pubkey.0).unwrap(),
             spend_pubkey: PublicKey::from_slice(&helper.spend_pubkey.0).unwrap(),
+            change_label: Label::try_from(helper.change_label).unwrap(),
             labels: helper.labels.0,
         })
     }
@@ -233,6 +235,7 @@ impl Receiver {
         version: u32,
         scan_pubkey: PublicKey,
         spend_pubkey: PublicKey,
+        change_label: Label,
         is_testnet: bool,
     ) -> Result<Self> {
         let labels: BiMap<Label, PublicKey> = BiMap::new();
@@ -244,22 +247,31 @@ impl Receiver {
             ));
         }
 
-        Ok(Receiver {
+        let mut receiver = Receiver {
             version: version as u8,
             scan_pubkey,
             spend_pubkey,
+            change_label: change_label.clone(),
             labels,
             is_testnet,
-        })
+        };
+
+        // This check that the change_label produces a valid key at each step
+        receiver.add_label(change_label)?;
+
+        Ok(receiver)
     }
 
     /// Takes a Label and adds it to the list of labels that this recipient uses.
     /// Returns a bool on success, `true` if the label was new, `false` if it already existed in our list.
     pub fn add_label(&mut self, label: Label) -> Result<bool> {
-        let secp = Secp256k1::new();
+        let secp = Secp256k1::signing_only();
 
         let m = SecretKey::from_slice(&label.as_inner().to_be_bytes())?;
         let mG = m.public_key(&secp);
+
+        // check that the combined key with spend_key is valid
+        mG.combine(&self.spend_pubkey)?;
 
         let old = self.labels.insert(label, mG);
 
@@ -297,6 +309,16 @@ impl Receiver {
         }
     }
 
+    pub fn get_change_address(&self) -> String {
+        let sk = SecretKey::from_slice(&self.change_label.as_inner().to_be_bytes())
+            .expect("Unexpected invalid change label");
+        let pk = sk.public_key(&Secp256k1::signing_only());
+        let B_m = pk
+            .combine(&self.spend_pubkey)
+            .expect("Unexpected invalid pubkey");
+        self.encode_silent_payment_address(B_m)
+    }
+
     /// Get the bech32m-encoded silent payment address.
     ///
     /// # Returns
@@ -327,10 +349,10 @@ impl Receiver {
         &self,
         ecdh_shared_secret: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
-    ) -> Result<HashMap<Label, HashMap<XOnlyPublicKey, Scalar>>> {
+    ) -> Result<HashMap<Option<Label>, HashMap<XOnlyPublicKey, Scalar>>> {
         let secp = secp256k1::Secp256k1::new();
 
-        let mut found: HashMap<Label, HashMap<XOnlyPublicKey, Scalar>> = HashMap::new();
+        let mut found: HashMap<Option<Label>, HashMap<XOnlyPublicKey, Scalar>> = HashMap::new();
         let mut n_found: u32 = 0;
         let mut n: u32 = 0;
         while n_found == n {
@@ -340,7 +362,7 @@ impl Receiver {
             if pubkeys_to_check.iter().any(|p| p.eq(&P_n_xonly)) {
                 n_found += 1;
                 found
-                    .entry(NULL_LABEL)
+                    .entry(None)
                     .or_insert_with(HashMap::new)
                     .insert(P_n_xonly, t_n.into());
             } else if !self.labels.is_empty() {
@@ -356,7 +378,7 @@ impl Receiver {
                             n_found += 1;
                             let t_n_label = t_n.add_tweak(label.as_inner())?;
                             found
-                                .entry(label.clone())
+                                .entry(Some(label.clone()))
                                 .or_insert_with(HashMap::new)
                                 .insert(*p, t_n_label.into());
                             break 'outer;
@@ -393,7 +415,7 @@ impl Receiver {
         tweak_data: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
     ) -> Result<HashMap<XOnlyPublicKey, Scalar>> {
-        if !self.labels.is_empty() {
+        if !self.labels.len() > 1 {
             return Err(Error::GenericError(
                 "This function should only be used by wallets without labels; use scan_transaction_with_labels instead".to_owned(),
             ));
@@ -402,10 +424,15 @@ impl Receiver {
         // re-use scan_transaction_with_labels function
         let mut map = self.scan_transaction_with_labels(tweak_data, pubkeys_to_check)?;
 
-        match map.remove(&NULL_LABEL) {
-            Some(res) => Ok(res),
-            None => Ok(HashMap::new()),
-        }
+        let mut res: HashMap<XOnlyPublicKey, Scalar> = HashMap::new();
+        if let Some(no_label) = map.remove(&None) {
+            res.extend(no_label.iter());
+        };
+        if let Some(change) = map.remove(&Some(self.change_label.clone())) {
+            res.extend(change.iter());
+        };
+
+        Ok(res)
     }
 
     /// Get the Script byte vector from a transaction's tweak data.
