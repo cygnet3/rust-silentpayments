@@ -1,20 +1,14 @@
-use std::{
-    fs::File,
-    io::Read,
-    str::FromStr,
-};
+use std::{fs::File, io::Read, str::FromStr};
 
-use secp256k1::{
-    Message, PublicKey, Scalar, SecretKey, XOnlyPublicKey, Parity::Even,
-};
-use bitcoin_hashes::{Hash, hash160};
+use bitcoin_hashes::{hash160, Hash};
+use secp256k1::{Message, Parity::Even, PublicKey, Scalar, SecretKey, XOnlyPublicKey};
 use serde_json::from_str;
 
 use super::structs::{OutputWithSignature, TestData};
 
 use silentpayments::Error;
-use std::io::{self, Cursor};
 use std::convert::TryInto;
+use std::io::{self, Cursor};
 
 fn deser_compact_size(f: &mut Cursor<&Vec<u8>>) -> io::Result<u64> {
     let mut buf = [0; 8];
@@ -23,15 +17,15 @@ fn deser_compact_size(f: &mut Cursor<&Vec<u8>>) -> io::Result<u64> {
         0xfd => {
             f.read_exact(&mut buf[..2])?;
             Ok(u16::from_le_bytes(buf[..2].try_into().unwrap()) as u64)
-        },
+        }
         0xfe => {
             f.read_exact(&mut buf[..4])?;
             Ok(u32::from_le_bytes(buf[..4].try_into().unwrap()) as u64)
-        },
+        }
         0xff => {
             f.read_exact(&mut buf)?;
             Ok(u64::from_le_bytes(buf))
-        },
+        }
         _ => Ok(buf[0] as u64),
     }
 }
@@ -59,10 +53,8 @@ pub fn deser_string_vector(f: &mut Cursor<&Vec<u8>>) -> io::Result<Vec<Vec<u8>>>
 // ** Putting all the pubkey extraction logic in the test utils for now. **
 // NUMS_H (defined in BIP340)
 const NUMS_H: [u8; 32] = [
-    0x50, 0x92, 0x9b, 0x74, 0xc1, 0xa0, 0x49, 0x54,
-    0xb7, 0x8b, 0x4b, 0x60, 0x35, 0xe9, 0x7a, 0x5e,
-    0x07, 0x8a, 0x5a, 0x0f, 0x28, 0xec, 0x96, 0xd5,
-    0x47, 0xbf, 0xee, 0x9a, 0xce, 0x80, 0x3a, 0xc0
+    0x50, 0x92, 0x9b, 0x74, 0xc1, 0xa0, 0x49, 0x54, 0xb7, 0x8b, 0x4b, 0x60, 0x35, 0xe9, 0x7a, 0x5e,
+    0x07, 0x8a, 0x5a, 0x0f, 0x28, 0xec, 0x96, 0xd5, 0x47, 0xbf, 0xee, 0x9a, 0xce, 0x80, 0x3a, 0xc0,
 ];
 
 // Define OP_CODES used in script template matching for readability
@@ -117,9 +109,17 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
                         return Ok(None);
                     }
                 }
-            },
-            (_, true) => return Err(Error::InvalidVin("Empty script_sig for spending a p2pkh".to_owned())),
-            (false, _) => return Err(Error::InvalidVin("non empty witness for spending a p2pkh".to_owned()))
+            }
+            (_, true) => {
+                return Err(Error::InvalidVin(
+                    "Empty script_sig for spending a p2pkh".to_owned(),
+                ))
+            }
+            (false, _) => {
+                return Err(Error::InvalidVin(
+                    "non empty witness for spending a p2pkh".to_owned(),
+                ))
+            }
         }
     } else if is_p2sh(&vin.script_pub_key) {
         match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
@@ -127,11 +127,21 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
                 let redeem_script = &vin.script_sig[1..];
                 if is_p2wpkh(redeem_script) {
                     let len = redeem_script.len();
-                    return Ok(Some(PublicKey::from_slice(&redeem_script[len - COMPRESSED_PUBKEY_SIZE..len])?));
+                    return Ok(Some(PublicKey::from_slice(
+                        &redeem_script[len - COMPRESSED_PUBKEY_SIZE..len],
+                    )?));
                 }
-            },
-            (_, true) => return Err(Error::InvalidVin("Empty script_sig for spending a p2sh".to_owned())),
-            (false, _) => return Err(Error::InvalidVin("non empty witness for spending a p2sh".to_owned()))
+            }
+            (_, true) => {
+                return Err(Error::InvalidVin(
+                    "Empty script_sig for spending a p2sh".to_owned(),
+                ))
+            }
+            (false, _) => {
+                return Err(Error::InvalidVin(
+                    "non empty witness for spending a p2sh".to_owned(),
+                ))
+            }
         }
     } else if is_p2wpkh(&vin.script_pub_key) {
         match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
@@ -145,9 +155,17 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
                 } else {
                     return Err(Error::InvalidVin("Empty witness".to_owned()));
                 }
-            },
-            (_, false) => return Err(Error::InvalidVin("Non empty script sig for spending a segwit output".to_owned())),
-            (true, _) => return Err(Error::InvalidVin("Empty witness for spending a segwit output".to_owned()))
+            }
+            (_, false) => {
+                return Err(Error::InvalidVin(
+                    "Non empty script sig for spending a segwit output".to_owned(),
+                ))
+            }
+            (true, _) => {
+                return Err(Error::InvalidVin(
+                    "Empty witness for spending a segwit output".to_owned(),
+                ))
+            }
         }
     } else if is_p2tr(&vin.script_pub_key) {
         match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
@@ -168,10 +186,20 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
                 // Return the pubkey from the script pubkey
                 return XOnlyPublicKey::from_slice(&vin.script_pub_key[2..34])
                     .map_err(|e| Error::Secp256k1Error(e))
-                    .map(|x_only_public_key| Some(PublicKey::from_x_only_public_key(x_only_public_key, Even)));
-            },
-            (_, false) => return Err(Error::InvalidVin("Non empty script sig for spending a segwit output".to_owned())),
-            (true, _) => return Err(Error::InvalidVin("Empty witness for spending a segwit output".to_owned()))
+                    .map(|x_only_public_key| {
+                        Some(PublicKey::from_x_only_public_key(x_only_public_key, Even))
+                    });
+            }
+            (_, false) => {
+                return Err(Error::InvalidVin(
+                    "Non empty script sig for spending a segwit output".to_owned(),
+                ))
+            }
+            (true, _) => {
+                return Err(Error::InvalidVin(
+                    "Empty witness for spending a segwit output".to_owned(),
+                ))
+            }
         }
     }
     return Ok(None);
@@ -230,7 +258,6 @@ pub fn verify_and_calculate_signatures(
     }
     Ok(res)
 }
-
 
 pub fn sender_get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> SecretKey {
     let secp = secp256k1::Secp256k1::new();

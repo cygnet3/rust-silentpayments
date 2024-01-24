@@ -1,13 +1,10 @@
 use bech32::{FromBase32, ToBase32};
 
-use secp256k1::{PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
 use core::fmt;
+use secp256k1::{PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::collections::HashMap;
 
-use crate::{
-    error::Error,
-    Result, common::calculate_t_n,
-};
+use crate::{common::calculate_t_n, error::Error, Result};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct SilentPaymentAddress {
@@ -53,7 +50,11 @@ impl SilentPaymentAddress {
 
 impl fmt::Display for SilentPaymentAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", <SilentPaymentAddress as Into<String>>::into(self.clone()))
+        write!(
+            f,
+            "{}",
+            <SilentPaymentAddress as Into<String>>::into(self.clone())
+        )
     }
 }
 
