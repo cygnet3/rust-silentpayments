@@ -334,6 +334,7 @@ impl Receiver {
     ///
     /// * `ecdh_shared_secret` -  The ECDH shared secret between sender and recipient as a PublicKey, the result of elliptic-curve multiplication of `(outpoints_hash * sum_inputs_pubkeys) * scan_private_key`.
     /// * `pubkeys_to_check` - A `HashSet` of public keys of all (unspent) taproot output of the transaction.
+    /// * `with_labels` - a bool to indicate wether we want to scan for labels too, including change
     ///
     /// # Returns
     ///
@@ -345,7 +346,7 @@ impl Receiver {
     ///
     /// * One of the public keys to scan can't be parsed into a valid x-only public key.
     /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
-    pub fn scan_transaction_with_labels(
+    pub fn scan_transaction(
         &self,
         ecdh_shared_secret: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
@@ -365,7 +366,7 @@ impl Receiver {
                     .entry(None)
                     .or_insert_with(HashMap::new)
                     .insert(P_n_xonly, t_n.into());
-            } else if !self.labels.is_empty() {
+            } else {
                 // We subtract P_n from each outputs to check and see if match a public key in our label list
                 'outer: for p in &pubkeys_to_check {
                     let even_output = p.public_key(Parity::Even);
@@ -389,50 +390,6 @@ impl Receiver {
             n += 1;
         }
         Ok(found)
-    }
-
-    /// Scans a transaction for outputs belonging to us.
-    /// Note: this function is only for wallets that don't use labels!
-    /// If this silent payment wallet uses labels, use `scan_transaction_with_labels` instead.
-    ///
-    /// # Arguments
-    ///
-    /// * `tweak_data` -  The tweak data for the transaction as a PublicKey, the result of elliptic-curve multiplication of `outpoints_hash * A`.
-    /// * `pubkeys_to_check` - A `Vec` of public keys of all (unspent) taproot output of the transaction.
-    ///
-    /// # Returns
-    ///
-    /// If successful, the function returns a `Result` wrapping a `HashMap` that maps the given outputs to private key tweaks. A resulting `HashMap` of length 0 implies none of the outputs are owned by us.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if:
-    ///
-    /// * One of the public keys to scan can't be parsed into a valid x-only public key.
-    /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
-    pub fn scan_transaction(
-        &self,
-        tweak_data: &PublicKey,
-        pubkeys_to_check: Vec<XOnlyPublicKey>,
-    ) -> Result<HashMap<XOnlyPublicKey, Scalar>> {
-        if !self.labels.len() > 1 {
-            return Err(Error::GenericError(
-                "This function should only be used by wallets without labels; use scan_transaction_with_labels instead".to_owned(),
-            ));
-        }
-
-        // re-use scan_transaction_with_labels function
-        let mut map = self.scan_transaction_with_labels(tweak_data, pubkeys_to_check)?;
-
-        let mut res: HashMap<XOnlyPublicKey, Scalar> = HashMap::new();
-        if let Some(no_label) = map.remove(&None) {
-            res.extend(no_label.iter());
-        };
-        if let Some(change) = map.remove(&Some(self.change_label.clone())) {
-            res.extend(change.iter());
-        };
-
-        Ok(res)
     }
 
     /// Get the Script byte vector from a transaction's tweak data.
