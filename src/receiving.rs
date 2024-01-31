@@ -309,6 +309,12 @@ impl Receiver {
         }
     }
 
+    /// Get the silent payment change address for this Receiver. This is the
+    /// static address associated with the change label, as described
+    /// in the BIP. Wallets can create silent payment-native change addresses
+    /// by sending to this static change address, much like sending to a normal
+    /// silent payment address.
+    /// Important note: this address should never be shown to the user!
     pub fn get_change_address(&self) -> String {
         let sk = SecretKey::from_slice(&self.change_label.as_inner().to_be_bytes())
             .expect("Unexpected invalid change label");
