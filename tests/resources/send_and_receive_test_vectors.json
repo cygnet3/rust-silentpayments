@@ -2046,10 +2046,10 @@
                             "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
                             "vout": 0,
                             "scriptSig": "",
-                            "txinwitness": "0440c459b671370d12cfb5acee76da7e3ba7cc29b0b4653e3af8388591082660137d087fdc8e89a612cd5d15be0febe61fc7cdcf3161a26e599a4514aa5c3e86f47b22205a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5ac41c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0e6adf06419fc5d335d5e6a34f160304d78ff7356343aa0e6a79a3a715725f4440150",
+                            "txinwitness": "0440c459b671370d12cfb5acee76da7e3ba7cc29b0b4653e3af8388591082660137d087fdc8e89a612cd5d15be0febe61fc7cdcf3161a26e599a4514aa5c3e86f47b22205a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5ac21c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00150",
                             "prevout": {
                                 "scriptPubKey": {
-                                    "hex": "51205a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5"
+                                    "hex": "5120da6f0595ecb302bbe73e2f221f05ab10f336b06817d36fd28fc6691725ddaa85"
                                 }
                             },
                             "private_key": "eadc78165ff1f8ea94ad7cfdc54990738a4c53f6e0507b42154201b8e5dff3b1"
@@ -2070,10 +2070,10 @@
                             "txid": "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d",
                             "vout": 1,
                             "scriptSig": "",
-                            "txinwitness": "0340268d31a9276f6380107d5321cafa6d9e8e5ea39204318fdc8206b31507c891c3bbcea3c99e2208d73bd127a8e8c5f1e45a54f1bd217205414ddb566ab7eda0092220e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85dac41c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0e6adf06419fc5d335d5e6a34f160304d78ff7356343aa0e6a79a3a715725f444",
+                            "txinwitness": "0340268d31a9276f6380107d5321cafa6d9e8e5ea39204318fdc8206b31507c891c3bbcea3c99e2208d73bd127a8e8c5f1e45a54f1bd217205414ddb566ab7eda0092220e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85dac21c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0",
                             "prevout": {
                                 "scriptPubKey": {
-                                    "hex": "5120e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85d"
+                                    "hex": "51200a3c9365ceb131f89b0a4feb6896ebd67bb15a98c31eaa3da143bb955a0f3fcb"
                                 }
                             },
                             "private_key": "8d4751f6e8a3586880fb66c19ae277969bd5aa06f61c4ee2f1e2486efdf666d3"
@@ -2104,10 +2104,10 @@
                             "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
                             "vout": 0,
                             "scriptSig": "",
-                            "txinwitness": "0440c459b671370d12cfb5acee76da7e3ba7cc29b0b4653e3af8388591082660137d087fdc8e89a612cd5d15be0febe61fc7cdcf3161a26e599a4514aa5c3e86f47b22205a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5ac41c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0e6adf06419fc5d335d5e6a34f160304d78ff7356343aa0e6a79a3a715725f4440150",
+                            "txinwitness": "0440c459b671370d12cfb5acee76da7e3ba7cc29b0b4653e3af8388591082660137d087fdc8e89a612cd5d15be0febe61fc7cdcf3161a26e599a4514aa5c3e86f47b22205a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5ac21c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00150",
                             "prevout": {
                                 "scriptPubKey": {
-                                    "hex": "51205a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5"
+                                    "hex": "5120da6f0595ecb302bbe73e2f221f05ab10f336b06817d36fd28fc6691725ddaa85"
                                 }
                             }
                         },
@@ -2126,10 +2126,10 @@
                             "txid": "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d",
                             "vout": 1,
                             "scriptSig": "",
-                            "txinwitness": "0340268d31a9276f6380107d5321cafa6d9e8e5ea39204318fdc8206b31507c891c3bbcea3c99e2208d73bd127a8e8c5f1e45a54f1bd217205414ddb566ab7eda0092220e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85dac41c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0e6adf06419fc5d335d5e6a34f160304d78ff7356343aa0e6a79a3a715725f444",
+                            "txinwitness": "0340268d31a9276f6380107d5321cafa6d9e8e5ea39204318fdc8206b31507c891c3bbcea3c99e2208d73bd127a8e8c5f1e45a54f1bd217205414ddb566ab7eda0092220e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85dac21c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0",
                             "prevout": {
                                 "scriptPubKey": {
-                                    "hex": "5120e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85d"
+                                    "hex": "51200a3c9365ceb131f89b0a4feb6896ebd67bb15a98c31eaa3da143bb955a0f3fcb"
                                 }
                             }
                         }
@@ -2152,6 +2152,428 @@
                             "pub_key": "79e79897c52935bfd97fc6e076a6431a0c7543ca8c31e0fc3cf719bb572c842d",
                             "priv_key_tweak": "3ddec3232609d348d6b8b53123b4f40f6d4f5398ca586f087b0416ec3b851496",
                             "signature": "d7d06e3afb68363031e4eb18035c46ceae41bdbebe7888a4754bc9848c596436869aeaecff0527649a1f458b71c9ceecec10b535c09d01d720229aa228547706"
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    {
+        "comment": "Pubkey extraction from malleated p2pkh",
+        "sending": [
+            {
+                "given": {
+                    "vin": [
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 0,
+                            "scriptSig": "483046022100ad79e6801dd9a8727f342f31c71c4912866f59dc6e7981878e92c5844a0ce929022100fb0d2393e813968648b9753b7e9871d90ab3d815ebf91820d704b19f4ed224d621025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "76a91419c2f3ae0ca3b642bd3e49598b8da89f50c1416188ac"
+                                }
+                            },
+                            "private_key": "eadc78165ff1f8ea94ad7cfdc54990738a4c53f6e0507b42154201b8e5dff3b1"
+                        },
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 1,
+                            "scriptSig": "0075473045022100a8c61b2d470e393279d1ba54f254b7c237de299580b7fa01ffcc940442ecec4502201afba952f4e4661c40acde7acc0341589031ba103a307b886eb867b23b850b972103782eeb913431ca6e9b8c2fd80a5f72ed2024ef72a3c6fb10263c379937323338",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "76a9147cdd63cc408564188e8e472640e921c7c90e651d88ac"
+                                }
+                            },
+                            "private_key": "0378e95685b74565fa56751b84a32dfd18545d10d691641b8372e32164fad66a"
+                        },
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 2,
+                            "scriptSig": "5163473045022100e7d26e77290b37128f5215ade25b9b908ce87cc9a4d498908b5bb8fd6daa1b8d022002568c3a8226f4f0436510283052bfb780b76f3fe4aa60c4c5eb118e43b187372102e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85d67483046022100c0d3c851d3bd562ae93d56bcefd735ea57c027af46145a4d5e9cac113bfeb0c2022100ee5b2239af199fa9b7aa1d98da83a29d0a2cf1e4f29e2f37134ce386d51c544c2102ad0f26ddc7b3fcc340155963b3051b85289c1869612ecb290184ac952e2864ec68",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "76a914c82c5ec473cbc6c86e5ef410e36f9495adcf979988ac"
+                                }
+                            },
+                            "private_key": "72b8ae09175ca7977f04993e651d88681ed932dfb92c5158cdf0161dd23fda6e"
+                        }
+                    ],
+                    "recipients": [
+                        [
+                            "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv",
+                            1.0
+                        ]
+                    ]
+                },
+                "expected": {
+                    "outputs": [
+                        [
+                            "4612cdbf845c66c7511d70aab4d9aed11e49e48cdb8d799d787101cdd0d53e4f",
+                            1.0
+                        ]
+                    ]
+                }
+            }
+        ],
+        "receiving": [
+            {
+                "given": {
+                    "vin": [
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 0,
+                            "scriptSig": "483046022100ad79e6801dd9a8727f342f31c71c4912866f59dc6e7981878e92c5844a0ce929022100fb0d2393e813968648b9753b7e9871d90ab3d815ebf91820d704b19f4ed224d621025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "76a91419c2f3ae0ca3b642bd3e49598b8da89f50c1416188ac"
+                                }
+                            }
+                        },
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 1,
+                            "scriptSig": "0075473045022100a8c61b2d470e393279d1ba54f254b7c237de299580b7fa01ffcc940442ecec4502201afba952f4e4661c40acde7acc0341589031ba103a307b886eb867b23b850b972103782eeb913431ca6e9b8c2fd80a5f72ed2024ef72a3c6fb10263c379937323338",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "76a9147cdd63cc408564188e8e472640e921c7c90e651d88ac"
+                                }
+                            }
+                        },
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 2,
+                            "scriptSig": "5163473045022100e7d26e77290b37128f5215ade25b9b908ce87cc9a4d498908b5bb8fd6daa1b8d022002568c3a8226f4f0436510283052bfb780b76f3fe4aa60c4c5eb118e43b187372102e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85d67483046022100c0d3c851d3bd562ae93d56bcefd735ea57c027af46145a4d5e9cac113bfeb0c2022100ee5b2239af199fa9b7aa1d98da83a29d0a2cf1e4f29e2f37134ce386d51c544c2102ad0f26ddc7b3fcc340155963b3051b85289c1869612ecb290184ac952e2864ec68",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "76a914c82c5ec473cbc6c86e5ef410e36f9495adcf979988ac"
+                                }
+                            }
+                        }
+                    ],
+                    "outputs": [
+                        "4612cdbf845c66c7511d70aab4d9aed11e49e48cdb8d799d787101cdd0d53e4f"
+                    ],
+                    "key_material": {
+                        "spend_priv_key": "9d6ad855ce3417ef84e836892e5a56392bfba05fa5d97ccea30e266f540e08b3",
+                        "scan_priv_key": "0f694e068028a717f8af6b9411f9a133dd3565258714cc226594b34db90c1f2c"
+                    },
+                    "labels": []
+                },
+                "expected": {
+                    "addresses": [
+                        "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv"
+                    ],
+                    "outputs": [
+                        {
+                            "pub_key": "4612cdbf845c66c7511d70aab4d9aed11e49e48cdb8d799d787101cdd0d53e4f",
+                            "priv_key_tweak": "10bde9781def20d7701e7603ef1b1e5e71c67bae7154818814e3c81ef5b1a3d3",
+                            "signature": "6137969f810e9e8ef6c9755010e808f5dd1aed705882e44d7f0ae64eb0c509ec8b62a0671bee0d5914ac27d2c463443e28e999d82dc3d3a4919f093872d947bb"
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    {
+        "comment": "P2PKH and P2WPKH Uncompressed Keys are skipped",
+        "sending": [
+            {
+                "given": {
+                    "vin": [
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 0,
+                            "scriptSig": "483046022100ad79e6801dd9a8727f342f31c71c4912866f59dc6e7981878e92c5844a0ce929022100fb0d2393e813968648b9753b7e9871d90ab3d815ebf91820d704b19f4ed224d621025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "76a91419c2f3ae0ca3b642bd3e49598b8da89f50c1416188ac"
+                                }
+                            },
+                            "private_key": "eadc78165ff1f8ea94ad7cfdc54990738a4c53f6e0507b42154201b8e5dff3b1"
+                        },
+                        {
+                            "txid": "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d",
+                            "vout": 0,
+                            "scriptSig": "473045022100a8c61b2d470e393279d1ba54f254b7c237de299580b7fa01ffcc940442ecec4502201afba952f4e4661c40acde7acc0341589031ba103a307b886eb867b23b850b972104782eeb913431ca6e9b8c2fd80a5f72ed2024ef72a3c6fb10263c3799373233387c5343bf58e23269e903335b958a12182f9849297321e8d710e49a8727129cab",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "76a9144b92ac4ac6fe6212393894addda332f2e47a315688ac"
+                                }
+                            },
+                            "private_key": "0378e95685b74565fa56751b84a32dfd18545d10d691641b8372e32164fad66a"
+                        },
+                        {
+                            "txid": "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d",
+                            "vout": 1,
+                            "scriptSig": "",
+                            "txinwitness": "02473045022100e7d26e77290b37128f5215ade25b9b908ce87cc9a4d498908b5bb8fd6daa1b8d022002568c3a8226f4f0436510283052bfb780b76f3fe4aa60c4c5eb118e43b187374104e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85d6fe8190e189be57d0d5bcd17dbcbcd04c9b4a1c5f605b10d5c90abfcc0d12884",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "00140423f731a07491364e8dce98b7c00bda63336950"
+                                }
+                            },
+                            "private_key": "72b8ae09175ca7977f04993e651d88681ed932dfb92c5158cdf0161dd23fda6e"
+                        }
+                    ],
+                    "recipients": [
+                        [
+                            "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv",
+                            1.0
+                        ]
+                    ]
+                },
+                "expected": {
+                    "outputs": [
+                        [
+                            "67fee277da9e8542b5d2e6f32d660a9bbd3f0e107c2d53638ab1d869088882d6",
+                            1.0
+                        ]
+                    ]
+                }
+            }
+        ],
+        "receiving": [
+            {
+                "given": {
+                    "vin": [
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 0,
+                            "scriptSig": "483046022100ad79e6801dd9a8727f342f31c71c4912866f59dc6e7981878e92c5844a0ce929022100fb0d2393e813968648b9753b7e9871d90ab3d815ebf91820d704b19f4ed224d621025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "76a91419c2f3ae0ca3b642bd3e49598b8da89f50c1416188ac"
+                                }
+                            }
+                        },
+                        {
+                            "txid": "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d",
+                            "vout": 0,
+                            "scriptSig": "473045022100a8c61b2d470e393279d1ba54f254b7c237de299580b7fa01ffcc940442ecec4502201afba952f4e4661c40acde7acc0341589031ba103a307b886eb867b23b850b972104782eeb913431ca6e9b8c2fd80a5f72ed2024ef72a3c6fb10263c3799373233387c5343bf58e23269e903335b958a12182f9849297321e8d710e49a8727129cab",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "76a9144b92ac4ac6fe6212393894addda332f2e47a315688ac"
+                                }
+                            }
+                        },
+                        {
+                            "txid": "a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d",
+                            "vout": 1,
+                            "scriptSig": "",
+                            "txinwitness": "02473045022100e7d26e77290b37128f5215ade25b9b908ce87cc9a4d498908b5bb8fd6daa1b8d022002568c3a8226f4f0436510283052bfb780b76f3fe4aa60c4c5eb118e43b187374104e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85d6fe8190e189be57d0d5bcd17dbcbcd04c9b4a1c5f605b10d5c90abfcc0d12884",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "00140423f731a07491364e8dce98b7c00bda63336950"
+                                }
+                            }
+                        }
+                    ],
+                    "outputs": [
+                        "67fee277da9e8542b5d2e6f32d660a9bbd3f0e107c2d53638ab1d869088882d6"
+                    ],
+                    "key_material": {
+                        "spend_priv_key": "9d6ad855ce3417ef84e836892e5a56392bfba05fa5d97ccea30e266f540e08b3",
+                        "scan_priv_key": "0f694e068028a717f8af6b9411f9a133dd3565258714cc226594b34db90c1f2c"
+                    },
+                    "labels": []
+                },
+                "expected": {
+                    "addresses": [
+                        "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv"
+                    ],
+                    "outputs": [
+                        {
+                            "pub_key": "67fee277da9e8542b5d2e6f32d660a9bbd3f0e107c2d53638ab1d869088882d6",
+                            "priv_key_tweak": "688fa3aeb97d2a46ae87b03591921c2eaf4b505eb0ddca2733c94701e01060cf",
+                            "signature": "72e7ad573ac23255d4651d5b0326a200496588acb7a4894b22092236d5eda6a0a9a4d8429b022c2219081fefce5b33795cae488d10f5ea9438849ed8353624f2"
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    {
+        "comment": "Skip invalid P2SH inputs",
+        "sending": [
+            {
+                "given": {
+                    "vin": [
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 0,
+                            "scriptSig": "16001419c2f3ae0ca3b642bd3e49598b8da89f50c14161",
+                            "txinwitness": "02483046022100ad79e6801dd9a8727f342f31c71c4912866f59dc6e7981878e92c5844a0ce929022100fb0d2393e813968648b9753b7e9871d90ab3d815ebf91820d704b19f4ed224d621025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "a9148629db5007d5fcfbdbb466637af09daf9125969387"
+                                }
+                            },
+                            "private_key": "eadc78165ff1f8ea94ad7cfdc54990738a4c53f6e0507b42154201b8e5dff3b1"
+                        },
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 1,
+                            "scriptSig": "1600144b92ac4ac6fe6212393894addda332f2e47a3156",
+                            "txinwitness": "02473045022100a8c61b2d470e393279d1ba54f254b7c237de299580b7fa01ffcc940442ecec4502201afba952f4e4661c40acde7acc0341589031ba103a307b886eb867b23b850b974104782eeb913431ca6e9b8c2fd80a5f72ed2024ef72a3c6fb10263c3799373233387c5343bf58e23269e903335b958a12182f9849297321e8d710e49a8727129cab",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "a9146c9bf136fbb7305fd99d771a95127fcf87dedd0d87"
+                                }
+                            },
+                            "private_key": "0378e95685b74565fa56751b84a32dfd18545d10d691641b8372e32164fad66a"
+                        },
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 2,
+                            "scriptSig": "00493046022100ad79e6801dd9a8727f342f31c71c4912866f59dc6e7981878e92c5844a0ce929022100fb0d2393e813968648b9753b7e9871d90ab3d815ebf91820d704b19f4ed224d601483045022100a8c61b2d470e393279d1ba54f254b7c237de299580b7fa01ffcc940442ecec4502201afba952f4e4661c40acde7acc0341589031ba103a307b886eb867b23b850b97014c695221025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be52103782eeb913431ca6e9b8c2fd80a5f72ed2024ef72a3c6fb10263c3799373233382102e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85d53ae",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "a9141044ddc6cea09e4ac40fbec2ba34ad62de6db25b87"
+                                }
+                            },
+                            "private_key": "eadc78165ff1f8ea94ad7cfdc54990738a4c53f6e0507b42154201b8e5dff3b1"
+                        }
+                    ],
+                    "recipients": [
+                        [
+                            "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv",
+                            1.0
+                        ]
+                    ]
+                },
+                "expected": {
+                    "outputs": [
+                        [
+                            "67fee277da9e8542b5d2e6f32d660a9bbd3f0e107c2d53638ab1d869088882d6",
+                            1.0
+                        ]
+                    ]
+                }
+            },
+            {
+                "given": {
+                    "vin": [
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 0,
+                            "scriptSig": "16001419c2f3ae0ca3b642bd3e49598b8da89f50c14161",
+                            "txinwitness": "02483046022100ad79e6801dd9a8727f342f31c71c4912866f59dc6e7981878e92c5844a0ce929022100fb0d2393e813968648b9753b7e9871d90ab3d815ebf91820d704b19f4ed224d621025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "a9148629db5007d5fcfbdbb466637af09daf9125969387"
+                                }
+                            },
+                            "private_key": "eadc78165ff1f8ea94ad7cfdc54990738a4c53f6e0507b42154201b8e5dff3b1"
+                        },
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 1,
+                            "scriptSig": "1600144b92ac4ac6fe6212393894addda332f2e47a3156",
+                            "txinwitness": "02473045022100a8c61b2d470e393279d1ba54f254b7c237de299580b7fa01ffcc940442ecec4502201afba952f4e4661c40acde7acc0341589031ba103a307b886eb867b23b850b974104782eeb913431ca6e9b8c2fd80a5f72ed2024ef72a3c6fb10263c3799373233387c5343bf58e23269e903335b958a12182f9849297321e8d710e49a8727129cab",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "a9146c9bf136fbb7305fd99d771a95127fcf87dedd0d87"
+                                }
+                            },
+                            "private_key": "0378e95685b74565fa56751b84a32dfd18545d10d691641b8372e32164fad66a"
+                        },
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 2,
+                            "scriptSig": "00493046022100ad79e6801dd9a8727f342f31c71c4912866f59dc6e7981878e92c5844a0ce929022100fb0d2393e813968648b9753b7e9871d90ab3d815ebf91820d704b19f4ed224d601483045022100a8c61b2d470e393279d1ba54f254b7c237de299580b7fa01ffcc940442ecec4502201afba952f4e4661c40acde7acc0341589031ba103a307b886eb867b23b850b97014c695221025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be52103782eeb913431ca6e9b8c2fd80a5f72ed2024ef72a3c6fb10263c3799373233382102e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85d53ae",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "a9141044ddc6cea09e4ac40fbec2ba34ad62de6db25b87"
+                                }
+                            },
+                            "private_key": "eadc78165ff1f8ea94ad7cfdc54990738a4c53f6e0507b42154201b8e5dff3b1"
+                        }
+                    ],
+                    "recipients": [
+                        [
+                            "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv",
+                            1.0
+                        ]
+                    ]
+                },
+                "expected": {
+                    "outputs": [
+                        [
+                            "67fee277da9e8542b5d2e6f32d660a9bbd3f0e107c2d53638ab1d869088882d6",
+                            1.0
+                        ]
+                    ]
+                }
+            }
+        ],
+        "receiving": [
+            {
+                "given": {
+                    "vin": [
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 0,
+                            "scriptSig": "16001419c2f3ae0ca3b642bd3e49598b8da89f50c14161",
+                            "txinwitness": "02483046022100ad79e6801dd9a8727f342f31c71c4912866f59dc6e7981878e92c5844a0ce929022100fb0d2393e813968648b9753b7e9871d90ab3d815ebf91820d704b19f4ed224d621025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be5",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "a9148629db5007d5fcfbdbb466637af09daf9125969387"
+                                }
+                            }
+                        },
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 1,
+                            "scriptSig": "1600144b92ac4ac6fe6212393894addda332f2e47a3156",
+                            "txinwitness": "02473045022100a8c61b2d470e393279d1ba54f254b7c237de299580b7fa01ffcc940442ecec4502201afba952f4e4661c40acde7acc0341589031ba103a307b886eb867b23b850b974104782eeb913431ca6e9b8c2fd80a5f72ed2024ef72a3c6fb10263c3799373233387c5343bf58e23269e903335b958a12182f9849297321e8d710e49a8727129cab",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "a9146c9bf136fbb7305fd99d771a95127fcf87dedd0d87"
+                                }
+                            }
+                        },
+                        {
+                            "txid": "f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16",
+                            "vout": 2,
+                            "scriptSig": "00493046022100ad79e6801dd9a8727f342f31c71c4912866f59dc6e7981878e92c5844a0ce929022100fb0d2393e813968648b9753b7e9871d90ab3d815ebf91820d704b19f4ed224d601483045022100a8c61b2d470e393279d1ba54f254b7c237de299580b7fa01ffcc940442ecec4502201afba952f4e4661c40acde7acc0341589031ba103a307b886eb867b23b850b97014c695221025a1e61f898173040e20616d43e9f496fba90338a39faa1ed98fcbaeee4dd9be52103782eeb913431ca6e9b8c2fd80a5f72ed2024ef72a3c6fb10263c3799373233382102e0ec4f64b3fa2e463ccfcf4e856e37d5e1e20275bc89ec1def9eb098eff1f85d53ae",
+                            "txinwitness": "",
+                            "prevout": {
+                                "scriptPubKey": {
+                                    "hex": "a9141044ddc6cea09e4ac40fbec2ba34ad62de6db25b87"
+                                }
+                            }
+                        }
+                    ],
+                    "outputs": [
+                        "67fee277da9e8542b5d2e6f32d660a9bbd3f0e107c2d53638ab1d869088882d6"
+                    ],
+                    "key_material": {
+                        "spend_priv_key": "9d6ad855ce3417ef84e836892e5a56392bfba05fa5d97ccea30e266f540e08b3",
+                        "scan_priv_key": "0f694e068028a717f8af6b9411f9a133dd3565258714cc226594b34db90c1f2c"
+                    },
+                    "labels": []
+                },
+                "expected": {
+                    "addresses": [
+                        "sp1qqgste7k9hx0qftg6qmwlkqtwuy6cycyavzmzj85c6qdfhjdpdjtdgqjuexzk6murw56suy3e0rd2cgqvycxttddwsvgxe2usfpxumr70xc9pkqwv"
+                    ],
+                    "outputs": [
+                        {
+                            "pub_key": "67fee277da9e8542b5d2e6f32d660a9bbd3f0e107c2d53638ab1d869088882d6",
+                            "priv_key_tweak": "688fa3aeb97d2a46ae87b03591921c2eaf4b505eb0ddca2733c94701e01060cf",
+                            "signature": "72e7ad573ac23255d4651d5b0326a200496588acb7a4894b22092236d5eda6a0a9a4d8429b022c2219081fefce5b33795cae488d10f5ea9438849ed8353624f2"
                         }
                     ]
                 }
