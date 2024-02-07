@@ -123,13 +123,16 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
         }
     } else if is_p2sh(&vin.script_pub_key) {
         match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
-            (true, false) => {
+            (false, false) => {
                 let redeem_script = &vin.script_sig[1..];
                 if is_p2wpkh(redeem_script) {
-                    let len = redeem_script.len();
-                    return Ok(Some(PublicKey::from_slice(
-                        &redeem_script[len - COMPRESSED_PUBKEY_SIZE..len],
-                    )?));
+                    if let Some(value) = vin.txinwitness.last() {
+                        if let Ok(pubkey) = PublicKey::from_slice(value) {
+                            return Ok(Some(pubkey));
+                        } else {
+                            return Ok(None);
+                        }
+                    }
                 }
             }
             (_, true) => {
@@ -137,11 +140,7 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
                     "Empty script_sig for spending a p2sh".to_owned(),
                 ))
             }
-            (false, _) => {
-                return Err(Error::InvalidVin(
-                    "non empty witness for spending a p2sh".to_owned(),
-                ))
-            }
+            (true, false) => return Ok(None),
         }
     } else if is_p2wpkh(&vin.script_pub_key) {
         match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
