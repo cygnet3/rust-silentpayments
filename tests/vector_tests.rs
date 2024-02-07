@@ -2,7 +2,7 @@
 mod common;
 #[cfg(test)]
 mod tests {
-    use secp256k1::{Scalar, Secp256k1, SecretKey};
+    use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
     use silentpayments::utils::LabelHash;
     use std::{collections::HashSet, io::Cursor, str::FromStr};
 
@@ -128,7 +128,7 @@ mod tests {
 
             let outputs_to_check = decode_outputs_to_check(&given.outputs);
 
-            let outpoints = given
+            let outpoints: Vec<(String, u32)> = given
                 .vin
                 .iter()
                 .map(|vin| (vin.txid.clone(), vin.vout))
@@ -155,7 +155,7 @@ mod tests {
                 }
             }
 
-            let input_pub_keys = tmp_input_pub_keys;
+            let input_pub_keys: Vec<&PublicKey> = tmp_input_pub_keys.iter().collect();
 
             for label_int in &given.labels {
                 let label = LabelHash::from_b_scan_and_m(b_scan, *label_int).to_scalar();
