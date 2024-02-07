@@ -127,10 +127,21 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
                 let redeem_script = &vin.script_sig[1..];
                 if is_p2wpkh(redeem_script) {
                     if let Some(value) = vin.txinwitness.last() {
-                        if let Ok(pubkey) = PublicKey::from_slice(value) {
-                            return Ok(Some(pubkey));
-                        } else {
-                            return Ok(None);
+                        match (
+                            PublicKey::from_slice(value),
+                            value.len() == COMPRESSED_PUBKEY_SIZE,
+                        ) {
+                            (Ok(pubkey), true) => {
+                                return Ok(Some(pubkey));
+                            }
+                            (_, false) => {
+                                return Ok(None);
+                            }
+                            // Not sure how we could get an error here, so just return none for now
+                            // if the pubkey cant be parsed
+                            (Err(_), _) => {
+                                return Ok(None);
+                            }
                         }
                     }
                 }
@@ -146,10 +157,21 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
         match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
             (false, true) => {
                 if let Some(value) = vin.txinwitness.last() {
-                    if let Ok(pubkey) = PublicKey::from_slice(value) {
-                        return Ok(Some(pubkey));
-                    } else {
-                        return Ok(None);
+                    match (
+                        PublicKey::from_slice(value),
+                        value.len() == COMPRESSED_PUBKEY_SIZE,
+                    ) {
+                        (Ok(pubkey), true) => {
+                            return Ok(Some(pubkey));
+                        }
+                        (_, false) => {
+                            return Ok(None);
+                        }
+                        // Not sure how we could get an error here, so just return none for now
+                        // if the pubkey cant be parsed
+                        (Err(_), _) => {
+                            return Ok(None);
+                        }
                     }
                 } else {
                     return Err(Error::InvalidVin("Empty witness".to_owned()));
