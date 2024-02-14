@@ -97,8 +97,8 @@ pub fn hash_outpoints(outpoints_data: &[(String, u32)], A_sum: PublicKey) -> Res
     // sort outpoints
     outpoints.sort_unstable();
 
-    if let Some(smallest_outpoint) = outpoints.get(0) {
-        Ok(InputsHash::from_outpoint_and_A_sum(&smallest_outpoint, &A_sum).to_scalar())
+    if let Some(smallest_outpoint) = outpoints.first() {
+        Ok(InputsHash::from_outpoint_and_A_sum(smallest_outpoint, &A_sum).to_scalar())
     } else {
         // This should never happen
         Err(Error::GenericError(

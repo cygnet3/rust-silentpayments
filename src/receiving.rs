@@ -363,15 +363,12 @@ impl Receiver {
         let mut n_found: u32 = 0;
         let mut n: u32 = 0;
         while n_found == n {
-            let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret, n)?;
+            let t_n: SecretKey = calculate_t_n(ecdh_shared_secret, n)?;
             let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
             let P_n_xonly = P_n.x_only_public_key().0;
             if pubkeys_to_check.iter().any(|p| p.eq(&P_n_xonly)) {
                 n_found += 1;
-                found
-                    .entry(None)
-                    .or_insert_with(HashMap::new)
-                    .insert(P_n_xonly, t_n.into());
+                found.entry(None).or_default().insert(P_n_xonly, t_n.into());
             } else {
                 // We subtract P_n from each outputs to check and see if match a public key in our label list
                 'outer: for p in &pubkeys_to_check {
@@ -386,7 +383,7 @@ impl Receiver {
                             let t_n_label = t_n.add_tweak(label.as_inner())?;
                             found
                                 .entry(Some(label.clone()))
-                                .or_insert_with(HashMap::new)
+                                .or_default()
                                 .insert(*p, t_n_label.into());
                             break 'outer;
                         }
@@ -420,7 +417,7 @@ impl Receiver {
         &self,
         ecdh_shared_secret: &PublicKey,
     ) -> Result<[u8; 34]> {
-        let t_n: SecretKey = calculate_t_n(&ecdh_shared_secret, 0)?;
+        let t_n: SecretKey = calculate_t_n(ecdh_shared_secret, 0)?;
         let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
         let output_key_bytes = P_n.x_only_public_key().0.serialize();
 
