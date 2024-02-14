@@ -192,7 +192,7 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
         match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
             (false, true) => {
                 // check for the optional annex
-                let annex = match vin.txinwitness.last().and_then(|value| value.get(0)) {
+                let annex = match vin.txinwitness.last().and_then(|value| value.first()) {
                     Some(&0x50) => 1,
                     Some(_) => 0,
                     None => return Err(Error::InvalidVin("Empty or invalid witness".to_owned())),
@@ -206,7 +206,7 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
 
                 // Return the pubkey from the script pubkey
                 return XOnlyPublicKey::from_slice(&vin.script_pub_key[2..34])
-                    .map_err(|e| Error::Secp256k1Error(e))
+                    .map_err(Error::Secp256k1Error)
                     .map(|x_only_public_key| {
                         Some(PublicKey::from_x_only_public_key(x_only_public_key, Even))
                     });
@@ -223,7 +223,7 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
             }
         }
     }
-    return Ok(None);
+    Ok(None)
 }
 
 pub fn read_file() -> Vec<TestData> {
@@ -291,7 +291,7 @@ pub fn sender_get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> SecretKey
         if *is_xonly && parity == secp256k1::Parity::Odd {
             negated_keys.push(key.negate());
         } else {
-            negated_keys.push(key.clone());
+            negated_keys.push(*key);
         }
     }
 

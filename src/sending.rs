@@ -50,11 +50,7 @@ impl SilentPaymentAddress {
 
 impl fmt::Display for SilentPaymentAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            <SilentPaymentAddress as Into<String>>::into(self.clone())
-        )
+        write!(f, "{}", <SilentPaymentAddress as Into<String>>::into(*self))
     }
 }
 
@@ -62,7 +58,7 @@ impl TryFrom<&str> for SilentPaymentAddress {
     type Error = Error;
 
     fn try_from(addr: &str) -> Result<Self> {
-        let (hrp, data, _variant) = bech32::decode(&addr)?;
+        let (hrp, data, _variant) = bech32::decode(addr)?;
 
         if data.len() != 107 {
             return Err(Error::GenericError("Address length is wrong".to_owned()));
@@ -86,7 +82,7 @@ impl TryFrom<&str> for SilentPaymentAddress {
         let scan_pubkey = PublicKey::from_slice(&data[..33])?;
         let m_pubkey = PublicKey::from_slice(&data[33..])?;
 
-        SilentPaymentAddress::new(scan_pubkey, m_pubkey, is_testnet, version.into())
+        SilentPaymentAddress::new(scan_pubkey, m_pubkey, is_testnet, version)
     }
 }
 
@@ -98,17 +94,17 @@ impl TryFrom<String> for SilentPaymentAddress {
     }
 }
 
-impl Into<String> for SilentPaymentAddress {
-    fn into(self) -> String {
-        let hrp = match self.is_testnet {
+impl From<SilentPaymentAddress> for String {
+    fn from(val: SilentPaymentAddress) -> Self {
+        let hrp = match val.is_testnet {
             true => "tsp",
             false => "sp",
         };
 
-        let version = bech32::u5::try_from_u8(self.version).unwrap();
+        let version = bech32::u5::try_from_u8(val.version).unwrap();
 
-        let B_scan_bytes = self.scan_pubkey.serialize();
-        let B_m_bytes = self.m_pubkey.serialize();
+        let B_scan_bytes = val.scan_pubkey.serialize();
+        let B_m_bytes = val.m_pubkey.serialize();
 
         let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
 
@@ -171,7 +167,7 @@ pub fn generate_multiple_recipient_pubkeys(
             let reskey = res.combine(&addr.m_pubkey)?;
             let (reskey_xonly, _) = reskey.x_only_public_key();
 
-            let entry = result.entry(addr.into()).or_insert_with(Vec::new);
+            let entry = result.entry(addr.into()).or_default();
             entry.push(reskey_xonly);
             n += 1;
         }
