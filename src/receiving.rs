@@ -338,7 +338,7 @@ impl Receiver {
     ///
     /// # Arguments
     ///
-    /// * `ecdh_shared_secret` -  The ECDH shared secret between sender and recipient as a PublicKey, the result of elliptic-curve multiplication of `(outpoints_hash * sum_inputs_pubkeys) * scan_private_key`.
+    /// * `ecdh_shared_secret` -  The ECDH shared secret between sender and recipient as a PublicKey, the result of elliptic-curve multiplication of `(input_hash * sum_inputs_pubkeys) * scan_private_key`.
     /// * `pubkeys_to_check` - A `HashSet` of public keys of all (unspent) taproot output of the transaction.
     /// * `with_labels` - a bool to indicate wether we want to scan for labels too, including change
     ///
@@ -395,39 +395,52 @@ impl Receiver {
         Ok(found)
     }
 
-    /// Get the Script byte vector from a transaction's tweak data.
+    /// Get the possible ScriptPubKeys from a transaction's tweak data.
     /// Using the tweak data, this function will calculate the resulting script, given the assumption that this transaction is a payment to us.
     /// This Script can be useful for BIP158 block filters.
-    /// Important note: this function does not support labels!
     ///
     /// # Arguments
     ///
-    /// * `ecdh_shared_secret` -  The ECDH shared secret between sender and recipient as a PublicKey, the result of elliptic-curve multiplication of `(outpoints_hash * sum_inputs_pubkeys) * scan_private_key`.
+    /// * `ecdh_shared_secret` -  The ECDH shared secret between sender and recipient as a PublicKey, the result of elliptic-curve multiplication of `(input_hash * sum_inputs_pubkeys) * scan_private_key`.
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `Result` wrapping a Script as a 34-byte vector. This has the following format: `OP_PUSHNUM_1 OP_PUSHBYTES_32 taproot_output`
+    /// If successful, the function returns a `Result` wrapping a HashMap that maps an optional Label to a Script as a 34-byte vector. The script has the following format: `OP_PUSHNUM_1 OP_PUSHBYTES_32 taproot_output`
     ///
     /// # Errors
     ///
     /// This function will return an error if:
     ///
     /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
-    pub fn get_script_bytes_from_shared_secret(
+    pub fn get_spks_from_shared_secret(
         &self,
         ecdh_shared_secret: &PublicKey,
-    ) -> Result<[u8; 34]> {
-        let t_n: SecretKey = calculate_t_n(ecdh_shared_secret, 0)?;
-        let P_n: PublicKey = calculate_P_n(&self.spend_pubkey, t_n.into())?;
-        let output_key_bytes = P_n.x_only_public_key().0.serialize();
+    ) -> Result<HashMap<Option<Label>, [u8; 34]>> {
+        let t_0: SecretKey = calculate_t_n(ecdh_shared_secret, 0)?;
+        let P_0: PublicKey = calculate_P_n(&self.spend_pubkey, t_0.into())?;
+        let output_key_bytes = P_0.x_only_public_key().0.serialize();
 
+        let mut res = HashMap::new();
+
+        let mut spk = [0u8; 34];
         // hardcoded opcode values for OP_PUSHNUM_1 and OP_PUSHBYTES_32
-        let mut result = [0u8; 34];
-        result[..2].copy_from_slice(&[0x51, 0x20]);
+        spk[..2].copy_from_slice(&[0x51, 0x20]);
+        spk[2..].copy_from_slice(&output_key_bytes);
 
-        result[2..].copy_from_slice(&output_key_bytes);
+        res.insert(None, spk);
 
-        Ok(result)
+        for (label, mG) in &self.labels {
+            let B_m = mG.combine(&self.spend_pubkey)?;
+            let P_m0 = calculate_P_n(&B_m, t_0.into())?;
+            let output_key_bytes = P_m0.x_only_public_key().0.serialize();
+
+            let mut spk = [0u8; 34];
+            spk[..2].copy_from_slice(&[0x51, 0x20]);
+            spk[2..].copy_from_slice(&output_key_bytes);
+
+            res.insert(Some(label.clone()), spk);
+        }
+        Ok(res)
     }
 
     fn encode_silent_payment_address(&self, m_pubkey: PublicKey) -> String {
