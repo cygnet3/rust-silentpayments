@@ -3,7 +3,7 @@ mod common;
 #[cfg(test)]
 mod tests {
     use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
-    use silentpayments::utils::LabelHash;
+    use silentpayments::utils::{LabelHash, get_pubkey_from_input, is_p2tr, VinData};
     use std::{collections::HashSet, io::Cursor, str::FromStr};
 
     #[cfg(feature = "receiving")]
@@ -21,8 +21,7 @@ mod tests {
         structs::TestData,
         utils::{
             self, decode_outputs_to_check, decode_recipients, deser_string_vector,
-            get_pubkey_from_input, is_p2tr, sender_get_a_sum_secret_keys,
-            verify_and_calculate_signatures, VinData,
+            sender_get_a_sum_secret_keys, verify_and_calculate_signatures,
         },
     };
 
