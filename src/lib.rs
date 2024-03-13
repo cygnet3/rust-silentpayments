@@ -6,7 +6,6 @@ mod error;
 pub mod receiving;
 #[cfg(feature = "sending")]
 pub mod sending;
-#[cfg(feature = "utils")]
 pub mod utils;
 
 pub use bitcoin_hashes;
