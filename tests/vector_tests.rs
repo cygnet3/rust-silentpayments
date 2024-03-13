@@ -115,9 +115,9 @@ mod tests {
             let B_spend = b_spend.public_key(&secp);
             let B_scan = b_scan.public_key(&secp);
 
-            let change_label = LabelHash::from_b_scan_and_m(b_scan, 0).to_scalar();
+            let change_label = LabelHash::from_b_scan_and_m(b_scan, 0).to_label();
             let mut sp_receiver =
-                Receiver::new(0, B_scan, B_spend, change_label.into(), IS_TESTNET).unwrap();
+                Receiver::new(0, B_scan, B_spend, change_label, IS_TESTNET).unwrap();
 
             let outputs_to_check = decode_outputs_to_check(&given.outputs);
 
@@ -146,8 +146,8 @@ mod tests {
             let input_pub_keys: Vec<&PublicKey> = tmp_input_pub_keys.iter().collect();
 
             for label_int in &given.labels {
-                let label = LabelHash::from_b_scan_and_m(b_scan, *label_int).to_scalar();
-                sp_receiver.add_label(label.into()).unwrap();
+                let label = LabelHash::from_b_scan_and_m(b_scan, *label_int).to_label();
+                sp_receiver.add_label(label).unwrap();
             }
 
             let mut receiving_addresses: HashSet<String> = HashSet::new();

@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{receiving::Label, Error};
 use bitcoin_hashes::{hash160, sha256t_hash_newtype, Hash, HashEngine};
 use secp256k1::{Parity::Even, PublicKey, Scalar, SecretKey, XOnlyPublicKey};
 
@@ -224,9 +224,12 @@ impl LabelHash {
         eng.input(&m.to_be_bytes());
         LabelHash::from_engine(eng)
     }
-    pub fn to_scalar(self) -> Scalar {
+
+    pub fn to_label(self) -> Label {
         // This is statistically extremely unlikely to panic.
-        Scalar::from_be_bytes(self.to_byte_array()).expect("hash value greater than curve order")
+        let s = Scalar::from_be_bytes(self.to_byte_array())
+            .expect("hash value greater than curve order");
+        s.into()
     }
 }
 
