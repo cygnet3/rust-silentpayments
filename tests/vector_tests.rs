@@ -3,7 +3,7 @@ mod common;
 #[cfg(test)]
 mod tests {
     use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
-    use silentpayments::utils::{LabelHash, get_pubkey_from_input, is_p2tr};
+    use silentpayments::utils::{get_pubkey_from_input, is_p2tr, LabelHash};
     use std::{collections::HashSet, io::Cursor, str::FromStr};
 
     #[cfg(feature = "receiving")]
