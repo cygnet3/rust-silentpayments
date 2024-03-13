@@ -3,7 +3,14 @@ mod common;
 #[cfg(test)]
 mod tests {
     use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
-    use silentpayments::utils::{get_pubkey_from_input, is_p2tr, LabelHash};
+    use silentpayments::{
+        receiving::Label,
+        utils::{
+            get_pubkey_from_input, is_p2tr,
+            receiving::{calculate_shared_secret, calculate_tweak_data},
+            sending::calculate_partial_secret,
+        },
+    };
     use std::{collections::HashSet, io::Cursor, str::FromStr};
 
     #[cfg(feature = "receiving")]
@@ -11,17 +18,12 @@ mod tests {
 
     #[cfg(feature = "sending")]
     use silentpayments::sending::generate_recipient_pubkeys;
-    use silentpayments::{
-        utils::hash_outpoints,
-        utils::receiving::{recipient_calculate_shared_secret, recipient_calculate_tweak_data},
-        utils::sending::sender_calculate_partial_secret,
-    };
 
     use crate::common::{
         structs::TestData,
         utils::{
             self, decode_outputs_to_check, decode_recipients, deser_string_vector,
-            sender_get_a_sum_secret_keys, verify_and_calculate_signatures,
+            verify_and_calculate_signatures,
         },
     };
 
@@ -37,8 +39,10 @@ mod tests {
     }
 
     fn process_test_case(test_case: TestData) {
+        println!("test: {}", test_case.comment);
+        let secp = Secp256k1::new();
+
         let mut sending_outputs: HashSet<String> = HashSet::new();
-        eprintln!("test.comment = {:?}", test_case.comment);
 
         #[cfg(feature = "sending")]
         for sendingtest in test_case.sending {
@@ -51,7 +55,7 @@ mod tests {
                 .iter()
                 .map(|vin| (vin.txid.clone(), vin.vout))
                 .collect();
-            let mut tmp_input_priv_keys = Vec::new();
+            let mut input_priv_keys = Vec::new();
             for input in given.vin {
                 let script_sig = hex::decode(&input.scriptSig).unwrap();
                 let txinwitness_bytes = hex::decode(&input.txinwitness).unwrap();
@@ -60,35 +64,26 @@ mod tests {
                 let script_pub_key = hex::decode(&input.prevout.scriptPubKey.hex).unwrap();
 
                 match get_pubkey_from_input(&script_sig, &txinwitness, &script_pub_key) {
-                    Ok(_pubkey) => match _pubkey {
-                        Some(_pubkey) => tmp_input_priv_keys.push((
-                            SecretKey::from_str(&input.private_key).unwrap(),
-                            is_p2tr(&script_pub_key),
-                        )),
-                        None => continue,
-                    },
+                    Ok(Some(_pubkey)) => input_priv_keys.push((
+                        SecretKey::from_str(&input.private_key).unwrap(),
+                        is_p2tr(&script_pub_key),
+                    )),
+                    Ok(None) => (),
                     Err(e) => panic!("Problem parsing the input: {:?}", e),
                 }
             }
 
-            let input_priv_keys = tmp_input_priv_keys;
-
-            let a_sum = sender_get_a_sum_secret_keys(&input_priv_keys);
-            let secp = Secp256k1::new();
-            let A_sum = a_sum.public_key(&secp);
-
-            let input_hash = hash_outpoints(&outpoints, A_sum).unwrap();
+            // we drop the amounts from the test here, since we don't work with amounts
+            // the wallet should make sure the amount sent are correct
             let silent_addresses = decode_recipients(&given.recipients);
 
-            let a_sum = sender_get_a_sum_secret_keys(&input_priv_keys);
-
-            let partial_secret = sender_calculate_partial_secret(a_sum, input_hash).unwrap();
-
+            // as an alternative, we could first multiply each input priv key with the input hash
+            // that way, we never expose the sk to our library
+            let partial_secret = calculate_partial_secret(&input_priv_keys, &outpoints).unwrap();
             let outputs = generate_recipient_pubkeys(silent_addresses, partial_secret).unwrap();
 
             for output_pubkeys in &outputs {
                 for pubkey in output_pubkeys.1 {
-                    // TODO check if this is always true
                     sending_outputs.insert(hex::encode(pubkey.serialize()));
                 }
             }
@@ -111,11 +106,10 @@ mod tests {
 
             let b_scan = SecretKey::from_str(&given.key_material.scan_priv_key).unwrap();
             let b_spend = SecretKey::from_str(&given.key_material.spend_priv_key).unwrap();
-            let secp = Secp256k1::new();
             let B_spend = b_spend.public_key(&secp);
             let B_scan = b_scan.public_key(&secp);
 
-            let change_label = LabelHash::from_b_scan_and_m(b_scan, 0).to_label();
+            let change_label = Label::new(b_scan, 0);
             let mut sp_receiver =
                 Receiver::new(0, B_scan, B_spend, change_label, IS_TESTNET).unwrap();
 
@@ -126,7 +120,7 @@ mod tests {
                 .iter()
                 .map(|vin| (vin.txid.clone(), vin.vout))
                 .collect();
-            let mut tmp_input_pub_keys = Vec::new();
+            let mut input_pub_keys = Vec::new();
             for input in given.vin {
                 let script_sig = hex::decode(&input.scriptSig).unwrap();
                 let txinwitness_bytes = hex::decode(&input.txinwitness).unwrap();
@@ -135,18 +129,16 @@ mod tests {
                 let script_pub_key = hex::decode(&input.prevout.scriptPubKey.hex).unwrap();
 
                 match get_pubkey_from_input(&script_sig, &txinwitness, &script_pub_key) {
-                    Ok(pubkey) => match pubkey {
-                        Some(pubkey) => tmp_input_pub_keys.push(pubkey),
-                        None => continue,
-                    },
+                    Ok(Some(pubkey)) => input_pub_keys.push(pubkey),
+                    Ok(None) => (),
                     Err(e) => panic!("Problem parsing the input: {:?}", e),
                 }
             }
 
-            let input_pub_keys: Vec<&PublicKey> = tmp_input_pub_keys.iter().collect();
+            let input_pub_keys: Vec<&PublicKey> = input_pub_keys.iter().collect();
 
             for label_int in &given.labels {
-                let label = LabelHash::from_b_scan_and_m(b_scan, *label_int).to_label();
+                let label = Label::new(b_scan, *label_int);
                 sp_receiver.add_label(label).unwrap();
             }
 
@@ -172,8 +164,8 @@ mod tests {
             // to the expected addresses
             assert_eq!(set1, set2);
 
-            let tweak_data = recipient_calculate_tweak_data(&input_pub_keys, &outpoints).unwrap();
-            let shared_secret = recipient_calculate_shared_secret(tweak_data, b_scan).unwrap();
+            let tweak_data = calculate_tweak_data(&input_pub_keys, &outpoints).unwrap();
+            let shared_secret = calculate_shared_secret(tweak_data, b_scan).unwrap();
 
             let scanned_outputs_received = sp_receiver
                 .scan_transaction(&shared_secret, outputs_to_check)
