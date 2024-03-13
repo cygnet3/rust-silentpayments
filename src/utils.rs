@@ -26,6 +26,7 @@ const OP_CHECKSIG: u8 = 0xAC;
 const COMPRESSED_PUBKEY_SIZE: usize = 33;
 
 // script templates for inputs allowed in BIP352 shared secret derivation
+/// Check if a script_pub_key is taproot.
 pub fn is_p2tr(spk: &[u8]) -> bool {
     matches!(spk, [OP_1, OP_PUSHBYTES_32, ..] if spk.len() == 34)
 }
@@ -42,6 +43,23 @@ fn is_p2pkh(spk: &[u8]) -> bool {
     matches!(spk, [OP_DUP, OP_HASH160, OP_PUSHBYTES_20, .., OP_EQUALVERIFY, OP_CHECKSIG] if spk.len() == 25)
 }
 
+/// Get the public keys from a set of input data.
+///
+/// # Arguments
+///
+/// * `script_sig` - The script signature as a byte array.
+/// * `txinwitness` - The witness data.
+/// * `script_pub_key` - The scriptpubkey from the output spent. This requires looking up the previous output.
+///
+/// # Returns
+///
+/// If no errors occur, this function will optionally return a PublicKey if this input is silent payment-eligible.
+///
+/// # Errors
+///
+/// This function will error if:
+///
+/// * The provided Vin data is incorrect.
 pub fn get_pubkey_from_input(
     script_sig: &[u8],
     txinwitness: &Vec<Vec<u8>>,
