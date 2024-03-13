@@ -5,6 +5,7 @@ use std::{
 
 use crate::{
     common::{calculate_P_n, calculate_t_n},
+    utils::LabelHash,
     Error, Result,
 };
 use bech32::ToBase32;
@@ -22,6 +23,12 @@ pub struct Label {
 }
 
 impl Label {
+    pub fn new(b_scan: SecretKey, m: u32) -> Label {
+        Label {
+            s: LabelHash::from_b_scan_and_m(b_scan, m).to_scalar(),
+        }
+    }
+
     pub fn into_inner(self) -> Scalar {
         self.s
     }
