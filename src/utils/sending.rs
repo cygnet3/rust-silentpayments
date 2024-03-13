@@ -3,6 +3,23 @@ use secp256k1::{Secp256k1, SecretKey};
 
 use super::calculate_input_hash;
 
+/// Calculate the partial secret that is needed for generating the recipient pubkeys.
+///
+/// # Arguments
+///
+/// * `input_keys` - A reference to a list of tuples, each tuple containing a `SecretKey` and `bool`. The `SecretKey` is the private key used in the input, and the `bool` indicates whether this was from a taproot address.
+/// * `outpoints_data` - The prevout outpoints used as input for this transaction. Note that the txid is given in String format, which is displayed in reverse order from the inner byte array.
+///
+/// # Returns
+///
+/// This function returns the partial secret, which represents the sum of all (eligible) input keys multiplied with the input hash.
+///
+/// # Errors
+///
+/// This function will error if:
+///
+/// * The input keys array is of length zero, or the summing results in an invalid key.
+/// * The outpoints_data is of length zero, or invalid.
 pub fn calculate_partial_secret(
     input_keys: &[(SecretKey, bool)],
     outpoints_data: &[(String, u32)],
