@@ -43,12 +43,12 @@ fn is_p2pkh(spk: &[u8]) -> bool {
 }
 
 pub fn get_pubkey_from_input(script_sig: &[u8], txinwitness: &Vec<Vec<u8>>, script_pub_key: &[u8]) -> Result<Option<PublicKey>, Error> {
-    if is_p2pkh(&script_pub_key) {
-        match (&txinwitness.is_empty(), &script_sig.is_empty()) {
+    if is_p2pkh(script_pub_key) {
+        match (txinwitness.is_empty(), script_sig.is_empty()) {
             (true, false) => {
                 let spk_hash = &script_pub_key[3..23];
                 for i in (COMPRESSED_PUBKEY_SIZE..=script_sig.len()).rev() {
-                    if let Some(pubkey_bytes) = &script_sig.get(i - COMPRESSED_PUBKEY_SIZE..i) {
+                    if let Some(pubkey_bytes) = script_sig.get(i - COMPRESSED_PUBKEY_SIZE..i) {
                         let pubkey_hash = hash160::Hash::hash(pubkey_bytes);
                         if pubkey_hash.to_byte_array() == spk_hash {
                             return Ok(Some(PublicKey::from_slice(pubkey_bytes)?));
@@ -69,8 +69,8 @@ pub fn get_pubkey_from_input(script_sig: &[u8], txinwitness: &Vec<Vec<u8>>, scri
                 ))
             }
         }
-    } else if is_p2sh(&script_pub_key) {
-        match (&txinwitness.is_empty(), &script_sig.is_empty()) {
+    } else if is_p2sh(script_pub_key) {
+        match (txinwitness.is_empty(), script_sig.is_empty()) {
             (false, false) => {
                 let redeem_script = &script_sig[1..];
                 if is_p2wpkh(redeem_script) {
@@ -101,8 +101,8 @@ pub fn get_pubkey_from_input(script_sig: &[u8], txinwitness: &Vec<Vec<u8>>, scri
             }
             (true, false) => return Ok(None),
         }
-    } else if is_p2wpkh(&script_pub_key) {
-        match (&txinwitness.is_empty(), &script_sig.is_empty()) {
+    } else if is_p2wpkh(script_pub_key) {
+        match (txinwitness.is_empty(), script_sig.is_empty()) {
             (false, true) => {
                 if let Some(value) = txinwitness.last() {
                     match (
@@ -136,8 +136,8 @@ pub fn get_pubkey_from_input(script_sig: &[u8], txinwitness: &Vec<Vec<u8>>, scri
                 ))
             }
         }
-    } else if is_p2tr(&script_pub_key) {
-        match (&txinwitness.is_empty(), &script_sig.is_empty()) {
+    } else if is_p2tr(script_pub_key) {
+        match (txinwitness.is_empty(), script_sig.is_empty()) {
             (false, true) => {
                 // check for the optional annex
                 let annex = match txinwitness.last().and_then(|value| value.first()) {
