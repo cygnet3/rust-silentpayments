@@ -25,12 +25,6 @@ const OP_CHECKSIG: u8 = 0xAC;
 // Only compressed pubkeys are supported for silent payments
 const COMPRESSED_PUBKEY_SIZE: usize = 33;
 
-pub struct VinData {
-    pub script_sig: Vec<u8>,
-    pub txinwitness: Vec<Vec<u8>>,
-    pub script_pub_key: Vec<u8>,
-}
-
 // script templates for inputs allowed in BIP352 shared secret derivation
 pub fn is_p2tr(spk: &[u8]) -> bool {
     matches!(spk, [OP_1, OP_PUSHBYTES_32, ..] if spk.len() == 34)
@@ -48,13 +42,13 @@ fn is_p2pkh(spk: &[u8]) -> bool {
     matches!(spk, [OP_DUP, OP_HASH160, OP_PUSHBYTES_20, .., OP_EQUALVERIFY, OP_CHECKSIG] if spk.len() == 25)
 }
 
-pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> {
-    if is_p2pkh(&vin.script_pub_key) {
-        match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
+pub fn get_pubkey_from_input(script_sig: &[u8], txinwitness: &Vec<Vec<u8>>, script_pub_key: &[u8]) -> Result<Option<PublicKey>, Error> {
+    if is_p2pkh(&script_pub_key) {
+        match (&txinwitness.is_empty(), &script_sig.is_empty()) {
             (true, false) => {
-                let spk_hash = &vin.script_pub_key[3..23];
-                for i in (COMPRESSED_PUBKEY_SIZE..=vin.script_sig.len()).rev() {
-                    if let Some(pubkey_bytes) = &vin.script_sig.get(i - COMPRESSED_PUBKEY_SIZE..i) {
+                let spk_hash = &script_pub_key[3..23];
+                for i in (COMPRESSED_PUBKEY_SIZE..=script_sig.len()).rev() {
+                    if let Some(pubkey_bytes) = &script_sig.get(i - COMPRESSED_PUBKEY_SIZE..i) {
                         let pubkey_hash = hash160::Hash::hash(pubkey_bytes);
                         if pubkey_hash.to_byte_array() == spk_hash {
                             return Ok(Some(PublicKey::from_slice(pubkey_bytes)?));
@@ -75,12 +69,12 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
                 ))
             }
         }
-    } else if is_p2sh(&vin.script_pub_key) {
-        match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
+    } else if is_p2sh(&script_pub_key) {
+        match (&txinwitness.is_empty(), &script_sig.is_empty()) {
             (false, false) => {
-                let redeem_script = &vin.script_sig[1..];
+                let redeem_script = &script_sig[1..];
                 if is_p2wpkh(redeem_script) {
-                    if let Some(value) = vin.txinwitness.last() {
+                    if let Some(value) = txinwitness.last() {
                         match (
                             PublicKey::from_slice(value),
                             value.len() == COMPRESSED_PUBKEY_SIZE,
@@ -107,10 +101,10 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
             }
             (true, false) => return Ok(None),
         }
-    } else if is_p2wpkh(&vin.script_pub_key) {
-        match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
+    } else if is_p2wpkh(&script_pub_key) {
+        match (&txinwitness.is_empty(), &script_sig.is_empty()) {
             (false, true) => {
-                if let Some(value) = vin.txinwitness.last() {
+                if let Some(value) = txinwitness.last() {
                     match (
                         PublicKey::from_slice(value),
                         value.len() == COMPRESSED_PUBKEY_SIZE,
@@ -142,24 +136,24 @@ pub fn get_pubkey_from_input(vin: &VinData) -> Result<Option<PublicKey>, Error> 
                 ))
             }
         }
-    } else if is_p2tr(&vin.script_pub_key) {
-        match (&vin.txinwitness.is_empty(), &vin.script_sig.is_empty()) {
+    } else if is_p2tr(&script_pub_key) {
+        match (&txinwitness.is_empty(), &script_sig.is_empty()) {
             (false, true) => {
                 // check for the optional annex
-                let annex = match vin.txinwitness.last().and_then(|value| value.first()) {
+                let annex = match txinwitness.last().and_then(|value| value.first()) {
                     Some(&0x50) => 1,
                     Some(_) => 0,
                     None => return Err(Error::InvalidVin("Empty or invalid witness".to_owned())),
                 };
 
                 // Check for script path
-                let stack_size = vin.txinwitness.len();
-                if stack_size > annex && vin.txinwitness[stack_size - annex - 1][1..33] == NUMS_H {
+                let stack_size = txinwitness.len();
+                if stack_size > annex && txinwitness[stack_size - annex - 1][1..33] == NUMS_H {
                     return Ok(None);
                 }
 
                 // Return the pubkey from the script pubkey
-                return XOnlyPublicKey::from_slice(&vin.script_pub_key[2..34])
+                return XOnlyPublicKey::from_slice(&script_pub_key[2..34])
                     .map_err(Error::Secp256k1Error)
                     .map(|x_only_public_key| {
                         Some(PublicKey::from_x_only_public_key(x_only_public_key, Even))

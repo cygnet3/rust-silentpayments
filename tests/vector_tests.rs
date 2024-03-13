@@ -3,7 +3,7 @@ mod common;
 #[cfg(test)]
 mod tests {
     use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
-    use silentpayments::utils::{LabelHash, get_pubkey_from_input, is_p2tr, VinData};
+    use silentpayments::utils::{LabelHash, get_pubkey_from_input, is_p2tr};
     use std::{collections::HashSet, io::Cursor, str::FromStr};
 
     #[cfg(feature = "receiving")]
@@ -59,16 +59,11 @@ mod tests {
                 let txinwitness = deser_string_vector(&mut cursor).unwrap();
                 let script_pub_key = hex::decode(&input.prevout.scriptPubKey.hex).unwrap();
 
-                let vin_data = VinData {
-                    script_sig,
-                    txinwitness,
-                    script_pub_key,
-                };
-                match get_pubkey_from_input(&vin_data) {
+                match get_pubkey_from_input(&script_sig, &txinwitness, &script_pub_key) {
                     Ok(_pubkey) => match _pubkey {
                         Some(_pubkey) => tmp_input_priv_keys.push((
                             SecretKey::from_str(&input.private_key).unwrap(),
-                            is_p2tr(&vin_data.script_pub_key),
+                            is_p2tr(&script_pub_key),
                         )),
                         None => continue,
                     },
@@ -140,12 +135,7 @@ mod tests {
                 let txinwitness = deser_string_vector(&mut cursor).unwrap();
                 let script_pub_key = hex::decode(&input.prevout.scriptPubKey.hex).unwrap();
 
-                let vin_data = VinData {
-                    script_sig,
-                    txinwitness,
-                    script_pub_key,
-                };
-                match get_pubkey_from_input(&vin_data) {
+                match get_pubkey_from_input(&script_sig, &txinwitness, &script_pub_key) {
                     Ok(pubkey) => match pubkey {
                         Some(pubkey) => tmp_input_pub_keys.push(pubkey),
                         None => continue,
