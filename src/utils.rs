@@ -243,7 +243,10 @@ impl SharedSecretHash {
     }
 }
 
-pub fn hash_outpoints(outpoints_data: &[(String, u32)], A_sum: PublicKey) -> Result<Scalar, Error> {
+pub(crate) fn calculate_input_hash(
+    outpoints_data: &[(String, u32)],
+    A_sum: PublicKey,
+) -> Result<Scalar, Error> {
     if outpoints_data.is_empty() {
         return Err(Error::GenericError("No outpoints provided".to_owned()));
     }
@@ -275,7 +278,7 @@ pub fn hash_outpoints(outpoints_data: &[(String, u32)], A_sum: PublicKey) -> Res
     outpoints.sort_unstable();
 
     if let Some(smallest_outpoint) = outpoints.first() {
-        Ok(InputsHash::from_outpoint_and_A_sum(smallest_outpoint, &A_sum).to_scalar())
+        Ok(InputsHash::from_outpoint_and_A_sum(smallest_outpoint, A_sum).to_scalar())
     } else {
         // This should never happen
         Err(Error::GenericError(

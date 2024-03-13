@@ -102,27 +102,3 @@ pub fn verify_and_calculate_signatures(
     }
     Ok(res)
 }
-
-pub fn sender_get_a_sum_secret_keys(input: &Vec<(SecretKey, bool)>) -> SecretKey {
-    let secp = secp256k1::Secp256k1::new();
-
-    let mut negated_keys: Vec<SecretKey> = vec![];
-
-    for (key, is_xonly) in input {
-        let (_, parity) = key.x_only_public_key(&secp);
-
-        if *is_xonly && parity == secp256k1::Parity::Odd {
-            negated_keys.push(key.negate());
-        } else {
-            negated_keys.push(*key);
-        }
-    }
-
-    let (head, tail) = negated_keys.split_first().unwrap();
-
-    let result: SecretKey = tail
-        .iter()
-        .fold(*head, |acc, &item| acc.add_tweak(&item.into()).unwrap());
-
-    result
-}
