@@ -10,7 +10,7 @@ mod tests {
     use silentpayments::receiving::Receiver;
 
     #[cfg(feature = "sending")]
-    use silentpayments::sending::generate_multiple_recipient_pubkeys;
+    use silentpayments::sending::generate_recipient_pubkeys;
     use silentpayments::{
         utils::hash_outpoints,
         utils::receiving::{recipient_calculate_shared_secret, recipient_calculate_tweak_data},
@@ -84,8 +84,7 @@ mod tests {
 
             let partial_secret = sender_calculate_partial_secret(a_sum, input_hash).unwrap();
 
-            let outputs =
-                generate_multiple_recipient_pubkeys(silent_addresses, partial_secret).unwrap();
+            let outputs = generate_recipient_pubkeys(silent_addresses, partial_secret).unwrap();
 
             for output_pubkeys in &outputs {
                 for pubkey in output_pubkeys.1 {

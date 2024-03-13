@@ -114,12 +114,14 @@ impl From<SilentPaymentAddress> for String {
     }
 }
 
-/// Create multiple outputs for a given set of silent payment recipients and their corresponding shared secrets.
+/// Create outputs for a given set of silent payment recipients and their corresponding shared secrets.
+/// When creating the outputs for a transaction, this function should be used to generate the output keys.
+/// This function should only be used once per transaction! If used multiple times, address reuse may occur.
 ///
 /// # Arguments
 ///
 /// * `recipients` - A `Vec` of silent payment addresses to be paid.
-/// * `partial_secret` - A `SecretKey` that represents the sum of the private keys of eligible inputs of the transaction multiplied by the hash of its outpoints.
+/// * `partial_secret` - A `SecretKey` that represents the sum of the private keys of eligible inputs of the transaction multiplied by the input hash.
 ///
 /// # Returns
 ///
@@ -131,9 +133,8 @@ impl From<SilentPaymentAddress> for String {
 /// This function will return an error if:
 ///
 /// * The recipients Vec contains a silent payment address with an incorrect format.
-/// * The ecdh_shared_secrets does not contain a secret for every B_scan that is being paid to.
 /// * Edge cases are hit during elliptic curve computation (extremely unlikely).
-pub fn generate_multiple_recipient_pubkeys(
+pub fn generate_recipient_pubkeys(
     recipients: Vec<String>,
     partial_secret: SecretKey,
 ) -> Result<HashMap<String, Vec<XOnlyPublicKey>>> {
@@ -173,41 +174,4 @@ pub fn generate_multiple_recipient_pubkeys(
         }
     }
     Ok(result)
-}
-
-/// Create output for a single silent payment recipient using a shared secret.
-/// This function is intended for the common use-case of paying a single silent payment address once.
-/// For sending to multiple recipients, or sending to the same recipient multiple times,
-/// use `create_multiple_recipient_pubkeys` instead.
-///
-/// # Arguments
-///
-/// * `recipient` - A `String` of the bech32m-encoded silent payment address to be paid.
-/// * `partial_secret` - A `SecretKey` representing the private keys of the outputs to spend multiplied by the hash of its outpoints.
-///
-/// # Returns
-///
-/// If successful, the function returns a `Result` wrapping the taproot output as an `XOnlyPublicKey`.
-///
-/// # Errors
-///
-/// This function will return an error if:
-///
-/// * The recipient silent payment address has an incorrect format.
-/// * Edge cases are hit during elliptic curve computation (extremely unlikely).
-pub fn generate_recipient_pubkey(
-    recipient: String,
-    partial_secret: SecretKey,
-) -> Result<XOnlyPublicKey> {
-    let res = generate_multiple_recipient_pubkeys(vec![recipient], partial_secret)?;
-
-    let output = res
-        .into_values()
-        .next()
-        .expect("Map should always have 1 value");
-
-    Ok(output
-        .into_iter()
-        .next()
-        .expect("Vec should always be of length 1"))
 }
