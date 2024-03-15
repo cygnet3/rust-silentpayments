@@ -1,4 +1,4 @@
-use crate::utils::SharedSecretHash;
+use crate::utils::hash::SharedSecretHash;
 use crate::Result;
 use bitcoin_hashes::Hash;
 use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
