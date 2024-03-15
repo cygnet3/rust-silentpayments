@@ -6,8 +6,9 @@ mod tests {
     use silentpayments::{
         receiving::Label,
         utils::{
-            get_pubkey_from_input, is_p2tr,
-            receiving::{calculate_shared_secret, calculate_tweak_data},
+            receiving::{
+                calculate_shared_secret, calculate_tweak_data, get_pubkey_from_input, is_p2tr,
+            },
             sending::calculate_partial_secret,
         },
     };

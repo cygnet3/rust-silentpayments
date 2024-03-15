@@ -1,7 +1,7 @@
 use crate::{Error, Result};
 use secp256k1::{Secp256k1, SecretKey};
 
-use super::calculate_input_hash;
+use super::hash::calculate_input_hash;
 
 /// Calculate the partial secret that is needed for generating the recipient pubkeys.
 ///

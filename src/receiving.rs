@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     common::{calculate_P_n, calculate_t_n},
-    utils::LabelHash,
+    utils::hash::LabelHash,
     Error, Result,
 };
 use bech32::ToBase32;
