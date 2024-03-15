@@ -9,6 +9,7 @@ homepage = "https://github.com/cygnet3/rust-silentpayments"
 repository = "https://github.com/cygnet3/rust-silentpayments"
 keywords = ["bitcoin", "secp256k1"]
 readme = "README.md"
+exclude = ["tests/resources"]
 
 [lib]
 name = "silentpayments"
