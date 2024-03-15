@@ -4,36 +4,43 @@ A rust implementation of BIP352: Silent Payments.
 
 ## About
 
-**Warning: this crate is still new and is my first project doing elliptic curve cryptography!
-Even though it passes the tests provided in the official silent payments BIP,
-review it carefully before using this with mainnet funds.**
+**Warning: both this crate and BIP352 are still quite new.
+Review this library carefully before using it with mainnet funds.**
 
 This library supports creating and sending to silent payment addresses,
 building on [`secp256k1`](https://docs.rs/secp256k1/latest/secp256k1)
 `PublicKey` and `SecretKey` structs for the interface.
+In the future, the library will probably be expanded to rely on structs from rust-bitcoin as well.
 
-There are two parts to this library: a sender part and a recipient part.
+The library is split up in two parts: sending and receiving.
 
-## Sender
+## Sending
 
 For sending to a silent payment address, you can call the `sender::generate_recipient_pubkeys` function.
-This function takes a `recipient: Vec<String>` as an argument, where the `String` is a bech32m encoded silent payment address (`sp1q...` or `tsp1q...`).
+This function takes a list of silent payment recipients, as well as a `partial_secret`.
 
-This function additionally takes a `ecdh_shared_secrets: HashMap<PublicKey, PublicKey>` argument, which maps a Spend key to a shared secret.
-Since this shared secret derivation requires secret data, this library expects the user to provide the pre-computed result.
-
-See the `tests/vector_tests.rs` and `tests/common/utils.rs` files for an example of how to compute the shared secrets.
+The `partial_secret` represents the sum of all input private keys multiplied with the input hash.
+To compute the `partial_secret`, the `utils::sending::compute_partial_secret` function can be used,
+although this requires exposing secret data to this library.
+Other methods for calculating the `partial_secret` will be added later.
 
 ## Recipient
 
-For receiving silent payments. We have use a struct called `recipient::SilentPayment`.
-After creating this struct with a spending and scanning secret key,
-you can call the `scan_transaction` function to look for any outputs in a transaction belonging to you.
+For receiving silent payments, we use the `receiving::Receiver` struct.
+This `Receiver` struct implements a `scan_transaction` function that can be used to scan an incoming transaction for newly received payments.
 
-The library also supports labels. You can optionally add labels before scanning by using the `add_label` function.
+The library also supports labels. One label, the change label, is included by default. You can optionally add additional labels before scanning by using the `add_label` function.
+
+## Examples
+
+We will soon add an `examples` folder that contains some simple sending and receiving examples.
+In the meantime, you can look at `tests/vector_tests.rs` to see how sending and receiving works in more detail.
+
+We are also working on a [wallet](https://github.com/cygnet3/sp-backend) that implements sending and receiving.
+This might also be a useful resource to get a more accurate idea on how the library can be integrated with wallets.
 
 ## Tests
 
-The `tests/resources` folder contains a copy of the test vectors as of January 24th 2024.
+The `tests/resources` folder contains a copy of the test vectors as of February 7th 2024.
 
 You can test the code using the test vectors by running `cargo test`.
