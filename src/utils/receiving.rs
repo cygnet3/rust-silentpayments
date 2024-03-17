@@ -1,3 +1,4 @@
+//! Receiving utility functions.
 use crate::{
     utils::{
         OP_0, OP_1, OP_CHECKSIG, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_HASH160, OP_PUSHBYTES_20,

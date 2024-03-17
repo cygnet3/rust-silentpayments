@@ -1,3 +1,18 @@
+//! A rust implementation of BIP352: Silent Payments.  This library
+//! can be used to add silent payment support to wallets.
+//!
+//! This library is split up in two parts: sending and receiving.
+//! Either of these can be implemented independently using
+//! the `sending` or `receiving` features.
+//!
+//! ## Examples
+//!
+//! Will be added soon.
+//! In the meantime, have a look at the [test vectors from the BIP](https://github.com/cygnet3/rust-silentpayments/blob/master/tests/vector_tests.rs)
+//! to see how to do a simple implementation.
+//!
+//! Alternatively, have a look at [Donation wallet](https://github.com/cygnet3/sp-backend/tree/master),
+//! which is a WIP 'silent payments native' wallet.
 #![allow(dead_code, non_snake_case)]
 mod common;
 mod error;

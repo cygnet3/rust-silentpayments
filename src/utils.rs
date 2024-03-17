@@ -1,3 +1,7 @@
+//! Utility functions for both sending and receiving.
+//!
+//! This module contains functions that are more 'high-level'
+//! than the basic sending and receiving logic.
 pub(crate) mod hash;
 pub mod receiving;
 pub mod sending;

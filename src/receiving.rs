@@ -1,3 +1,15 @@
+//! The receiving component of silent payments.
+//!
+//! For receiving, we use the `Receiver` struct.
+//! This struct does not contain any private key information,
+//! so as to avoid having access to secret data.
+//!
+//! After creating a `Receiver` object, you can call `scan_transaction`,
+//! to scan a specific transaction for outputs belonging to this receiver.
+//! For this, you need to have calculated the `ecdh_shared_secret` beforehand.
+//! To do so, you can use `utils::receiving::calculate_shared_secret`.
+//!
+//! For a concrete example, you can have a look at the [vector tests](https://github.com/cygnet3/rust-silentpayments/blob/master/tests/vector_tests.rs).
 use std::{
     collections::{HashMap, HashSet},
     fmt,
