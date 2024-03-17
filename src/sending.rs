@@ -1,3 +1,13 @@
+//! The sending component of silent payments.
+//!
+//! The most relevant function is `generate_recipient_pubkeys`,
+//! which can be used to create outputs for a list of silent payment receipients.
+//!
+//! Using `generate_recipient_pubkeys` will require calculating a
+//! `partial_secret` beforehand.
+//! To do this, you can use the function from `utils::sending::calculate_partial_secret`.
+//! See the [tests on github](https://github.com/cygnet3/rust-silentpayments/blob/master/tests/vector_tests.rs)
+//! for a concrete example.
 use bech32::{FromBase32, ToBase32};
 
 use core::fmt;

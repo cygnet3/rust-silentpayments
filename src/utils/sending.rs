@@ -1,3 +1,4 @@
+//! Sending utility functions.
 use crate::{Error, Result};
 use secp256k1::{Secp256k1, SecretKey};
 
