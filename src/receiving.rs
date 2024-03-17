@@ -359,7 +359,6 @@ impl Receiver {
     ///
     /// * `ecdh_shared_secret` -  The ECDH shared secret between sender and recipient as a PublicKey, the result of elliptic-curve multiplication of `(input_hash * sum_inputs_pubkeys) * scan_private_key`.
     /// * `pubkeys_to_check` - A `HashSet` of public keys of all (unspent) taproot output of the transaction.
-    /// * `with_labels` - a bool to indicate wether we want to scan for labels too, including change
     ///
     /// # Returns
     ///
