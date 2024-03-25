@@ -83,13 +83,13 @@ pub fn calculate_shared_secret(tweak_data: PublicKey, b_scan: SecretKey) -> Resu
 ///
 /// * The provided Vin data is incorrect.
 pub fn get_pubkey_from_input(
-    script_sig: &[u8],
-    txinwitness: &Vec<Vec<u8>>,
+    script_sig: Option<&[u8]>,
+    txinwitness: Option<&Vec<Vec<u8>>>,
     script_pub_key: &[u8],
 ) -> Result<Option<PublicKey>> {
     if is_p2pkh(script_pub_key) {
-        match (txinwitness.is_empty(), script_sig.is_empty()) {
-            (true, false) => {
+        match (txinwitness, script_sig) {
+            (None, Some(script_sig)) => {
                 let spk_hash = &script_pub_key[3..23];
                 for i in (COMPRESSED_PUBKEY_SIZE..=script_sig.len()).rev() {
                     if let Some(pubkey_bytes) = script_sig.get(i - COMPRESSED_PUBKEY_SIZE..i) {
@@ -102,20 +102,20 @@ pub fn get_pubkey_from_input(
                     }
                 }
             }
-            (_, true) => {
+            (_, None) => {
                 return Err(Error::InvalidVin(
                     "Empty script_sig for spending a p2pkh".to_owned(),
                 ))
             }
-            (false, _) => {
+            (Some(_txinwitness), _) => {
                 return Err(Error::InvalidVin(
                     "non empty witness for spending a p2pkh".to_owned(),
                 ))
             }
         }
     } else if is_p2sh(script_pub_key) {
-        match (txinwitness.is_empty(), script_sig.is_empty()) {
-            (false, false) => {
+        match (txinwitness, script_sig) {
+            (Some(txinwitness), Some(script_sig)) => {
                 let redeem_script = &script_sig[1..];
                 if is_p2wpkh(redeem_script) {
                     if let Some(value) = txinwitness.last() {
@@ -138,16 +138,16 @@ pub fn get_pubkey_from_input(
                     }
                 }
             }
-            (_, true) => {
+            (_, None) => {
                 return Err(Error::InvalidVin(
                     "Empty script_sig for spending a p2sh".to_owned(),
                 ))
             }
-            (true, false) => return Ok(None),
+            (None, Some(_script_sig)) => return Ok(None),
         }
     } else if is_p2wpkh(script_pub_key) {
-        match (txinwitness.is_empty(), script_sig.is_empty()) {
-            (false, true) => {
+        match (txinwitness, script_sig) {
+            (Some(txinwitness), None) => {
                 if let Some(value) = txinwitness.last() {
                     match (
                         PublicKey::from_slice(value),
@@ -169,20 +169,20 @@ pub fn get_pubkey_from_input(
                     return Err(Error::InvalidVin("Empty witness".to_owned()));
                 }
             }
-            (_, false) => {
+            (_, Some(_script_sig)) => {
                 return Err(Error::InvalidVin(
                     "Non empty script sig for spending a segwit output".to_owned(),
                 ))
             }
-            (true, _) => {
+            (None, _) => {
                 return Err(Error::InvalidVin(
                     "Empty witness for spending a segwit output".to_owned(),
                 ))
             }
         }
     } else if is_p2tr(script_pub_key) {
-        match (txinwitness.is_empty(), script_sig.is_empty()) {
-            (false, true) => {
+        match (txinwitness, script_sig) {
+            (Some(txinwitness), None) => {
                 // check for the optional annex
                 let annex = match txinwitness.last().and_then(|value| value.first()) {
                     Some(&0x50) => 1,
@@ -203,12 +203,12 @@ pub fn get_pubkey_from_input(
                         Some(PublicKey::from_x_only_public_key(x_only_public_key, Even))
                     });
             }
-            (_, false) => {
+            (_, Some(_script_sig)) => {
                 return Err(Error::InvalidVin(
                     "Non empty script sig for spending a segwit output".to_owned(),
                 ))
             }
-            (true, _) => {
+            (None, _) => {
                 return Err(Error::InvalidVin(
                     "Empty witness for spending a segwit output".to_owned(),
                 ))
