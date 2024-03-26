@@ -59,12 +59,22 @@ mod tests {
             let mut input_priv_keys = Vec::new();
             for input in given.vin {
                 let script_sig = hex::decode(&input.scriptSig).unwrap();
+                let script_sig = if script_sig.is_empty() {
+                    None
+                } else {
+                    Some(script_sig.as_slice())
+                };
                 let txinwitness_bytes = hex::decode(&input.txinwitness).unwrap();
-                let mut cursor = Cursor::new(&txinwitness_bytes);
-                let txinwitness = deser_string_vector(&mut cursor).unwrap();
+                let txinwitness = if txinwitness_bytes.is_empty() {
+                    None
+                } else {
+                    let mut cursor = Cursor::new(&txinwitness_bytes);
+                    let txinwitness = deser_string_vector(&mut cursor).unwrap();
+                    Some(txinwitness)
+                };
                 let script_pub_key = hex::decode(&input.prevout.scriptPubKey.hex).unwrap();
 
-                match get_pubkey_from_input(&script_sig, &txinwitness, &script_pub_key) {
+                match get_pubkey_from_input(script_sig, txinwitness.as_ref(), &script_pub_key) {
                     Ok(Some(_pubkey)) => input_priv_keys.push((
                         SecretKey::from_str(&input.private_key).unwrap(),
                         is_p2tr(&script_pub_key),
@@ -124,12 +134,23 @@ mod tests {
             let mut input_pub_keys = Vec::new();
             for input in given.vin {
                 let script_sig = hex::decode(&input.scriptSig).unwrap();
+                let script_sig = if script_sig.is_empty() {
+                    None
+                } else {
+                    Some(script_sig.as_slice())
+                };
                 let txinwitness_bytes = hex::decode(&input.txinwitness).unwrap();
-                let mut cursor = Cursor::new(&txinwitness_bytes);
-                let txinwitness = deser_string_vector(&mut cursor).unwrap();
+                let txinwitness = if txinwitness_bytes.is_empty() {
+                    None
+                } else {
+                    let mut cursor = Cursor::new(&txinwitness_bytes);
+                    let txinwitness = deser_string_vector(&mut cursor).unwrap();
+                    Some(txinwitness)
+                };
+
                 let script_pub_key = hex::decode(&input.prevout.scriptPubKey.hex).unwrap();
 
-                match get_pubkey_from_input(&script_sig, &txinwitness, &script_pub_key) {
+                match get_pubkey_from_input(script_sig, txinwitness.as_ref(), &script_pub_key) {
                     Ok(Some(pubkey)) => input_pub_keys.push(pubkey),
                     Ok(None) => (),
                     Err(e) => panic!("Problem parsing the input: {:?}", e),
