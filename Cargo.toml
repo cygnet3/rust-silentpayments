@@ -16,9 +16,10 @@ name = "silentpayments"
 crate-type = ["lib"]
 
 [features]
-default = ["sending", "receiving"]
+default = ["sending", "receiving", "bitcoin"]
 sending = []
 receiving = []
+bitcoin = ["dep:bitcoin"]
 
 [dependencies]
 secp256k1 = {version = "0.28.1", features = ["rand"] }
@@ -28,3 +29,4 @@ bimap = "0.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 bitcoin_hashes = "0.13.0"
+bitcoin = { version = "0.31", optional = true }

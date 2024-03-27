@@ -10,6 +10,9 @@ use bitcoin_hashes::{hash160, Hash};
 use secp256k1::{Parity::Even, XOnlyPublicKey};
 use secp256k1::{PublicKey, SecretKey};
 
+#[cfg(feature = "bitcoin")]
+use bitcoin::{ScriptBuf, TxIn};
+
 use super::{hash::calculate_input_hash, COMPRESSED_PUBKEY_SIZE, NUMS_H};
 
 /// Calculate the tweak data of a transaction.
@@ -234,4 +237,33 @@ fn is_p2sh(spk: &[u8]) -> bool {
 
 fn is_p2pkh(spk: &[u8]) -> bool {
     matches!(spk, [OP_DUP, OP_HASH160, OP_PUSHBYTES_20, .., OP_EQUALVERIFY, OP_CHECKSIG] if spk.len() == 25)
+}
+
+/// Get the public keys from a set of input data, using rust-bitcoin structs.
+///
+/// # Arguments
+///
+/// * `inputs` - A Vec that contains the transaction inputs (TxIn) along with the ScriptPubKey from the previous output
+///
+/// # Returns
+///
+/// On success, this function returns a list of all eligible public keys from a transaction as a `Vec`. If the `Vec` is of length 0, this transaction is not eligible to be a silent payment.
+///
+/// # Errors
+///
+/// This function will error if:
+///
+/// * The provided Vin data is incorrect. This shouldn't occur if the provided input from a valid transaction.
+#[cfg(feature = "bitcoin")]
+pub fn get_pubkeys_from_transaction(inputs: Vec<(TxIn, ScriptBuf)>) -> Result<Vec<PublicKey>> {
+    let mut res = vec![];
+    for (txin, spk) in inputs {
+        let script_sig = txin.script_sig.as_bytes();
+        let witness = txin.witness.to_vec();
+
+        if let Some(pk) = get_pubkey_from_input(script_sig, &witness, spk.as_bytes())? {
+            res.push(pk);
+        }
+    }
+    Ok(res)
 }
