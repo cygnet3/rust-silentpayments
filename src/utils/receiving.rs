@@ -267,3 +267,60 @@ pub fn get_pubkeys_from_transaction(inputs: Vec<(TxIn, ScriptBuf)>) -> Result<Ve
     }
     Ok(res)
 }
+
+#[cfg(test)]
+#[cfg(feature = "bitcoin")]
+mod tests {
+    use std::str::FromStr;
+
+    use bitcoin::{ScriptBuf, Transaction};
+    use secp256k1::PublicKey;
+
+    use crate::utils::receiving::get_pubkeys_from_transaction;
+
+    #[test]
+    fn test_single_wpkh_input_transaction() {
+        let tx_str = "02000000000101a9b9e18ab45fd7b9a6243a72972ced5af6aef816016c30576e525beda66bb4980200000000fdffffff014a0b0000000000001600143626f103c551124f501c8008d875e4d8a19b8d7e0247304402203d9e3bda11a1f0c2f0b4b51100b175ca1795e92ad391f1e9b898269a4db8196a02201faaf2157f859d4e2b92ebd4005d3cb2afc5dbf0b986f85520768f32bccf3f0e012103680d29bfc0deb1161e0e4d934dea1d0712ee0785a1e1c16ff3f55751b19afaa1ede40200";
+        let spk_str = "00149cfa9f8a1430e25658d1dda0b9fbccbf09f54002";
+        let expected_public_key_str =
+            "03680d29bfc0deb1161e0e4d934dea1d0712ee0785a1e1c16ff3f55751b19afaa1";
+
+        let tx: Transaction =
+            bitcoin::consensus::encode::deserialize(&hex::decode(tx_str).unwrap()).unwrap();
+        let spk = ScriptBuf::from_hex(spk_str).unwrap();
+        let zipped = tx.input.into_iter().zip([spk]).collect();
+
+        let res = get_pubkeys_from_transaction(zipped).unwrap();
+
+        assert!(res.len() == 1);
+
+        let expected_pk = PublicKey::from_str(expected_public_key_str).unwrap();
+        assert_eq!(res[0], expected_pk);
+    }
+
+    #[test]
+    fn test_multiple_wpkh_input_transaction() {
+        let tx_str = "02000000000102a9b9e18ab45fd7b9a6243a72972ced5af6aef816016c30576e525beda66bb4980100000000fdffffffa9b9e18ab45fd7b9a6243a72972ced5af6aef816016c30576e525beda66bb4980200000000fdffffff01d6120000000000001600143626f103c551124f501c8008d875e4d8a19b8d7e02473044022020754e5abf07a0219d21a1aaa544395d224b9daa36fce2090e533c2643fa667402201b2b1f28fd74e88626f340c28e65eb9294ca8d643dc1e0837098070b16406a67012102ccb119249f240f96ce9b71dd1ac41e09e56315ee9624bd7caaeb34f81729dca502473044022026e7ca9f134586fa9429f678c1e6e7e9d87b1b233545f2b34c47547a74c4525d022040b682dff5a1951496eca61c52c5ded13c79e9e0bef519ae4996f48bc27d1c8b012103680d29bfc0deb1161e0e4d934dea1d0712ee0785a1e1c16ff3f55751b19afaa1f2e40200";
+        let spk_str_1 = "0014478024d034d5289c849f2868758a65b436ead84f";
+        let spk_str_2 = "00149cfa9f8a1430e25658d1dda0b9fbccbf09f54002";
+        let expected_public_key_str_1 =
+            "02ccb119249f240f96ce9b71dd1ac41e09e56315ee9624bd7caaeb34f81729dca5";
+        let expected_public_key_str_2 =
+            "03680d29bfc0deb1161e0e4d934dea1d0712ee0785a1e1c16ff3f55751b19afaa1";
+
+        let tx: Transaction =
+            bitcoin::consensus::encode::deserialize(&hex::decode(tx_str).unwrap()).unwrap();
+        let spk_1 = ScriptBuf::from_hex(spk_str_1).unwrap();
+        let spk_2 = ScriptBuf::from_hex(spk_str_2).unwrap();
+        let zipped = tx.input.into_iter().zip([spk_1, spk_2]).collect();
+
+        let res = get_pubkeys_from_transaction(zipped).unwrap();
+
+        assert!(res.len() == 2);
+
+        let expected_pk_1 = PublicKey::from_str(expected_public_key_str_1).unwrap();
+        let expected_pk_2 = PublicKey::from_str(expected_public_key_str_2).unwrap();
+        assert_eq!(res[0], expected_pk_1);
+        assert_eq!(res[1], expected_pk_2);
+    }
+}
