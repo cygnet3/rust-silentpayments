@@ -13,7 +13,7 @@ use silentpayments::utils::receiving::{
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut args: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args().collect();
 
     // we take the mnemonic returned by create_wallet to recreate the receiver
     let m = Mnemonic::from_str(&args.get(1).unwrap())?;
@@ -90,13 +90,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Found {} output(s) with label {:?}", key_map.len(), label);
         for (xonly, sk) in key_map {
             let spending_key = spend_privkey.clone().add_tweak(&sk).unwrap();
-            println!(
-                "Private key to spend output with key {}: {}",
-                xonly,
-                PrivateKey::from_slice(&spending_key.secret_bytes(), Network::Signet)
-                    .unwrap()
-                    .to_wif()
-            );
+            let wif = PrivateKey::from_slice(&spending_key.secret_bytes(), Network::Signet)
+                .unwrap()
+                .to_wif();
+            println!("Private key to spend output with key {}: {}", xonly, wif);
+            println!("Descriptor to import in Bitcoin Core: rawtr({})", wif);
         }
     }
 
