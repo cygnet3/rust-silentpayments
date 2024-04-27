@@ -62,10 +62,10 @@ pub fn decode_outputs_to_check(outputs: &Vec<String>) -> Vec<XOnlyPublicKey> {
         .collect()
 }
 
-pub fn decode_recipients(recipients: &Vec<(String, f32)>) -> Vec<String> {
+pub fn decode_recipients(recipients: &Vec<String>) -> Vec<String> {
     recipients
         .iter()
-        .map(|(sp_addr_str, _)| sp_addr_str.to_owned())
+        .map(|sp_addr_str| sp_addr_str.to_owned())
         .collect()
 }
 
