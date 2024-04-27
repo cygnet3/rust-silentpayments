@@ -62,7 +62,7 @@ pub struct SendingData {
 #[derive(Debug, Deserialize)]
 pub struct SendingDataGiven {
     pub vin: Vec<SendingVinData>,
-    pub recipients: Vec<(String, f32)>,
+    pub recipients: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -77,7 +77,7 @@ pub struct SendingVinData {
 
 #[derive(Debug, Deserialize)]
 pub struct SendingDataExpected {
-    pub outputs: Vec<(String, f32)>,
+    pub outputs: Vec<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]

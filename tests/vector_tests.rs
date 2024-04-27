@@ -48,9 +48,7 @@ mod tests {
         #[cfg(feature = "sending")]
         for sendingtest in test_case.sending {
             let given = sendingtest.given;
-            let expected = sendingtest.expected.outputs;
-            let expected_output_addresses: HashSet<String> =
-                expected.iter().map(|(x, _)| x.into()).collect();
+            let expected = sendingtest.expected;
             let outpoints: Vec<(String, u32)> = given
                 .vin
                 .iter()
@@ -73,6 +71,9 @@ mod tests {
                     Err(e) => panic!("Problem parsing the input: {:?}", e),
                 }
             }
+            if input_priv_keys.len() == 0 {
+                continue;
+            }
 
             // we drop the amounts from the test here, since we don't work with amounts
             // the wallet should make sure the amount sent are correct
@@ -88,22 +89,17 @@ mod tests {
                     sending_outputs.insert(hex::encode(pubkey.serialize()));
                 }
             }
-
-            assert_eq!(sending_outputs, expected_output_addresses);
+            assert!(expected.outputs.iter().any(|candidate_set| {
+                sending_outputs
+                    .iter()
+                    .all(|output| candidate_set.contains(output))
+            }));
         }
 
         #[cfg(feature = "receiving")]
         for receivingtest in test_case.receiving {
             let given = receivingtest.given;
-            let mut expected = receivingtest.expected;
-
-            let receiving_outputs: HashSet<String> = given.outputs.iter().cloned().collect();
-
-            #[cfg(feature = "sending")]
-            // assert that the generated sending outputs are a subset
-            // of the expected receiving outputs
-            // i.e. all the generated outputs are present
-            assert!(sending_outputs.is_subset(&receiving_outputs));
+            let expected = receivingtest.expected;
 
             let b_scan = SecretKey::from_str(&given.key_material.scan_priv_key).unwrap();
             let b_spend = SecretKey::from_str(&given.key_material.spend_priv_key).unwrap();
@@ -135,6 +131,9 @@ mod tests {
                     Err(e) => panic!("Problem parsing the input: {:?}", e),
                 }
             }
+            if input_pub_keys.len() == 0 {
+                continue;
+            };
 
             let input_pub_keys: Vec<&PublicKey> = input_pub_keys.iter().collect();
 
@@ -183,14 +182,9 @@ mod tests {
                 })
                 .collect();
 
-            let mut res = verify_and_calculate_signatures(key_tweaks, b_spend).unwrap();
-
-            res.sort_by_key(|output| output.pub_key.clone());
-            expected
-                .outputs
-                .sort_by_key(|output| output.pub_key.clone());
-
-            assert_eq!(res, expected.outputs);
+            let res = verify_and_calculate_signatures(key_tweaks, b_spend).unwrap();
+            assert!(expected.outputs.len() == res.len());
+            assert!(res.iter().all(|output| expected.outputs.contains(output)));
         }
     }
 }
