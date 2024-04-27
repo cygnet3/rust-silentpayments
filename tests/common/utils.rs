@@ -6,7 +6,6 @@ use serde_json::from_str;
 
 use super::structs::{OutputWithSignature, TestData};
 
-use std::convert::TryInto;
 use std::io::{self, Cursor};
 
 fn deser_compact_size(f: &mut Cursor<&Vec<u8>>) -> io::Result<u64> {
