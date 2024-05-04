@@ -14,10 +14,8 @@ mod tests {
     };
     use std::{collections::HashSet, io::Cursor, str::FromStr};
 
-    #[cfg(feature = "receiving")]
     use silentpayments::receiving::Receiver;
 
-    #[cfg(feature = "sending")]
     use silentpayments::sending::generate_recipient_pubkeys;
 
     use crate::common::{
@@ -45,7 +43,6 @@ mod tests {
 
         let mut sending_outputs: HashSet<String> = HashSet::new();
 
-        #[cfg(feature = "sending")]
         for sendingtest in test_case.sending {
             let given = sendingtest.given;
             let expected = sendingtest.expected;
@@ -96,7 +93,6 @@ mod tests {
             }));
         }
 
-        #[cfg(feature = "receiving")]
         for receivingtest in test_case.receiving {
             let given = receivingtest.given;
             let expected = receivingtest.expected;
