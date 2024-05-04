@@ -3,7 +3,9 @@
 //! This module contains functions that are more 'high-level'
 //! than the basic sending and receiving logic.
 pub(crate) mod hash;
+#[cfg(feature = "receiving")]
 pub mod receiving;
+#[cfg(feature = "sending")]
 pub mod sending;
 
 // NUMS_H (defined in BIP340)
