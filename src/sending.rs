@@ -17,18 +17,25 @@ use std::collections::HashMap;
 use crate::{common::calculate_t_n, error::Error, Result};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub enum Network {
+    Mainnet,
+    Testnet,
+    Regtest,
+}
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct SilentPaymentAddress {
     version: u8,
     scan_pubkey: PublicKey,
     m_pubkey: PublicKey,
-    is_testnet: bool,
+    network: Network,
 }
 
 impl SilentPaymentAddress {
     pub fn new(
         scan_pubkey: PublicKey,
         m_pubkey: PublicKey,
-        is_testnet: bool,
+        network: Network,
         version: u8,
     ) -> Result<Self> {
         if version != 0 {
@@ -40,7 +47,7 @@ impl SilentPaymentAddress {
         Ok(SilentPaymentAddress {
             scan_pubkey,
             m_pubkey,
-            is_testnet,
+            network,
             version,
         })
     }
@@ -51,10 +58,6 @@ impl SilentPaymentAddress {
 
     pub fn get_spend_key(&self) -> PublicKey {
         self.m_pubkey
-    }
-
-    pub fn is_testnet(&self) -> bool {
-        self.is_testnet
     }
 }
 
@@ -76,12 +79,13 @@ impl TryFrom<&str> for SilentPaymentAddress {
 
         let version = data[0].to_u8();
 
-        let is_testnet = match hrp.as_str() {
-            "sp" => false,
-            "tsp" => true,
+        let network = match hrp.as_str() {
+            "sp" => Network::Mainnet,
+            "tsp" => Network::Testnet,
+            "sprt" => Network::Regtest,
             _ => {
                 return Err(Error::InvalidAddress(format!(
-                    "Wrong prefix, expected \"sp\" or \"tsp\", got \"{}\"",
+                    "Wrong prefix, expected \"sp\", \"tsp\", or \"sprt\", got \"{}\"",
                     &hrp
                 )))
             }
@@ -92,7 +96,7 @@ impl TryFrom<&str> for SilentPaymentAddress {
         let scan_pubkey = PublicKey::from_slice(&data[..33])?;
         let m_pubkey = PublicKey::from_slice(&data[33..])?;
 
-        SilentPaymentAddress::new(scan_pubkey, m_pubkey, is_testnet, version)
+        SilentPaymentAddress::new(scan_pubkey, m_pubkey, network, version)
     }
 }
 
@@ -106,9 +110,10 @@ impl TryFrom<String> for SilentPaymentAddress {
 
 impl From<SilentPaymentAddress> for String {
     fn from(val: SilentPaymentAddress) -> Self {
-        let hrp = match val.is_testnet {
-            true => "tsp",
-            false => "sp",
+        let hrp = match val.network {
+            Network::Testnet => "tsp",
+            Network::Regtest => "sprt",
+            Network::Mainnet => "sp",
         };
 
         let version = bech32::u5::try_from_u8(val.version).unwrap();
