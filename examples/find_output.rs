@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         scan_privkey.public_key(&secp),
         spend_privkey.public_key(&secp),
         change_label,
-        true,
+        silentpayments::Network::Testnet,
     )?;
 
     let outpoints: Vec<(String, u32)> = tx

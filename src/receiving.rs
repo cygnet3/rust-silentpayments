@@ -18,7 +18,7 @@ use std::{
 use crate::{
     common::{calculate_P_n, calculate_t_n},
     utils::hash::LabelHash,
-    Error, Result,
+    Error, Network, Result,
 };
 use bech32::ToBase32;
 use bimap::BiMap;
@@ -113,7 +113,7 @@ pub struct Receiver {
     spend_pubkey: PublicKey,
     change_label: Label, // To be able to tell which label is the change
     labels: BiMap<Label, PublicKey>,
-    pub is_testnet: bool,
+    pub network: Network,
 }
 
 struct SerializablePubkey([u8; 33]);
@@ -207,7 +207,7 @@ impl Serialize for Receiver {
     {
         let mut state = serializer.serialize_struct("Receiver", 5)?;
         state.serialize_field("version", &self.version)?;
-        state.serialize_field("is_testnet", &self.is_testnet)?;
+        state.serialize_field("network", &self.network)?;
         state.serialize_field(
             "scan_pubkey",
             &SerializablePubkey(self.scan_pubkey.serialize()),
@@ -225,7 +225,7 @@ impl Serialize for Receiver {
 #[derive(Deserialize)]
 struct ReceiverHelper {
     version: u8,
-    is_testnet: bool,
+    network: Network,
     scan_pubkey: SerializablePubkey,
     spend_pubkey: SerializablePubkey,
     change_label: String,
@@ -240,7 +240,7 @@ impl<'de> Deserialize<'de> for Receiver {
         let helper = ReceiverHelper::deserialize(deserializer)?;
         Ok(Receiver {
             version: helper.version,
-            is_testnet: helper.is_testnet,
+            network: helper.network,
             scan_pubkey: PublicKey::from_slice(&helper.scan_pubkey.0).unwrap(),
             spend_pubkey: PublicKey::from_slice(&helper.spend_pubkey.0).unwrap(),
             change_label: Label::try_from(helper.change_label).unwrap(),
@@ -255,7 +255,7 @@ impl Receiver {
         scan_pubkey: PublicKey,
         spend_pubkey: PublicKey,
         change_label: Label,
-        is_testnet: bool,
+        network: Network,
     ) -> Result<Self> {
         let labels: BiMap<Label, PublicKey> = BiMap::new();
 
@@ -272,10 +272,10 @@ impl Receiver {
             spend_pubkey,
             change_label: change_label.clone(),
             labels,
-            is_testnet,
+            network,
         };
 
-        // This check that the change_label produces a valid key at each step
+        // This checks that the change_label produces a valid key at each step
         receiver.add_label(change_label)?;
 
         Ok(receiver)
@@ -462,9 +462,10 @@ impl Receiver {
     }
 
     fn encode_silent_payment_address(&self, m_pubkey: PublicKey) -> String {
-        let hrp = match self.is_testnet {
-            false => "sp",
-            true => "tsp",
+        let hrp = match self.network {
+            Network::Mainnet => "sp",
+            Network::Testnet => "tsp",
+            Network::Regtest => "sprt",
         };
 
         let version = bech32::u5::try_from_u8(self.version).unwrap();
