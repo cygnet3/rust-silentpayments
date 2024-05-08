@@ -29,18 +29,23 @@ Other methods for calculating the `partial_secret` will be added later.
 For receiving silent payments, we use the `receiving::Receiver` struct.
 This `Receiver` struct implements a `scan_transaction` function that can be used to scan an incoming transaction for newly received payments.
 
-The library also supports labels. One label, the change label, is included by default. You can optionally add additional labels before scanning by using the `add_label` function.
+The library also supports labels.
+The change label (label for generating change addresses) is included by default.
+You can add additional labels before scanning by using the `add_label` function.
 
 ## Examples
 
-We will soon add an `examples` folder that contains some simple sending and receiving examples.
+Check out the `examples` folder for some simple sending and receiving examples.
+These examples are still very elementary, and will be expanded later.
 In the meantime, you can look at `tests/vector_tests.rs` to see how sending and receiving works in more detail.
 
-We are also working on a [wallet](https://github.com/cygnet3/sp-backend) that implements sending and receiving.
-This might also be a useful resource to get a more accurate idea on how the library can be integrated with wallets.
+We are also working on a [client](https://github.com/cygnet3/sp-client) that implements sending and receiving.
+This client can be used as a basis for building a silent payments wallet.
+Even if that isn't directly useful for you, it can still be a good resource for showing
+how this library can be integrated with wallets.
 
 ## Tests
 
-The `tests/resources` folder contains a copy of the test vectors as of February 7th 2024.
+The `tests/resources` folder contains a copy of the test vectors as of May 1st 2024.
 
 You can test the code using the test vectors by running `cargo test`.
