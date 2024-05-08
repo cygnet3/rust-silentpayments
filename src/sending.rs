@@ -14,14 +14,7 @@ use core::fmt;
 use secp256k1::{PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::collections::HashMap;
 
-use crate::{common::calculate_t_n, error::Error, Result};
-
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub enum Network {
-    Mainnet,
-    Testnet,
-    Regtest,
-}
+use crate::{common::calculate_t_n, error::Error, Network, Result};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct SilentPaymentAddress {
