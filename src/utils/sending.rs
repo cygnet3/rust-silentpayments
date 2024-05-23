@@ -1,6 +1,6 @@
 //! Sending utility functions.
 use crate::{Error, Result};
-use secp256k1::{Secp256k1, SecretKey};
+use secp256k1::{ecdh::shared_secret_point, PublicKey, Secp256k1, SecretKey};
 
 use super::hash::calculate_input_hash;
 
@@ -33,6 +33,31 @@ pub fn calculate_partial_secret(
     let input_hash = calculate_input_hash(outpoints_data, A_sum)?;
 
     Ok(a_sum.mul_tweak(&input_hash)?)
+}
+
+/// Calculate the shared secret of a transaction.
+///
+/// # Arguments
+///
+/// * `B_scan` - The scan public key used by the wallet.
+/// * `partial_secret` - the sum of all (eligible) input keys multiplied with the input hash, see `calculate_partial_secret`.
+///
+/// # Returns
+///
+/// This function returns the shared secret point of this transaction. This shared secret can be used to generate output keys for the recipient, see `sending::generate_recipient_pubkeys`
+///
+/// # Errors
+///
+/// This function will error if:
+///
+/// * Elliptic curve computation results in an invalid public key.
+pub fn calculate_shared_point(B_scan: &PublicKey, partial_secret: &SecretKey) -> [u8; 65] {
+    let mut ss_bytes = [0u8; 65];
+    ss_bytes[0] = 0x04;
+
+    // Using `shared_secret_point` to ensure the multiplication is constant time
+    ss_bytes[1..].copy_from_slice(&shared_secret_point(B_scan, partial_secret));
+    ss_bytes
 }
 
 fn get_a_sum_secret_keys(input: &[(SecretKey, bool)]) -> Result<SecretKey> {
