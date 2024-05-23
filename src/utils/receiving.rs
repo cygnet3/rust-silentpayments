@@ -7,7 +7,7 @@ use crate::{
     Error, Result,
 };
 use bitcoin_hashes::{hash160, Hash};
-use secp256k1::{Parity::Even, XOnlyPublicKey};
+use secp256k1::{ecdh::shared_secret_point, Parity::Even, XOnlyPublicKey};
 use secp256k1::{PublicKey, SecretKey};
 
 use super::{hash::calculate_input_hash, COMPRESSED_PUBKEY_SIZE, NUMS_H};
@@ -59,10 +59,13 @@ pub fn calculate_tweak_data(
 /// This function will error if:
 ///
 /// * Elliptic curve computation results in an invalid public key.
-pub fn calculate_shared_secret(tweak_data: PublicKey, b_scan: SecretKey) -> Result<PublicKey> {
-    let secp = secp256k1::Secp256k1::verification_only();
+pub fn calculate_shared_point(tweak_data: &PublicKey, b_scan: &SecretKey) -> [u8; 65] {
+    let mut ss_bytes = [0u8; 65];
+    ss_bytes[0] = 0x04;
 
-    Ok(tweak_data.mul_tweak(&secp, &b_scan.into())?)
+    // Using `shared_secret_point` to ensure the multiplication is constant time
+    ss_bytes[1..].copy_from_slice(&shared_secret_point(&tweak_data, &b_scan));
+    ss_bytes
 }
 
 /// Get the public keys from a set of input data.
