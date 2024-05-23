@@ -52,6 +52,10 @@ impl SilentPaymentAddress {
     pub fn get_spend_key(&self) -> PublicKey {
         self.m_pubkey
     }
+
+    pub fn get_network(&self) -> Network {
+        self.network
+    }
 }
 
 impl fmt::Display for SilentPaymentAddress {
