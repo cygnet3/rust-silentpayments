@@ -11,9 +11,10 @@
 use bech32::{FromBase32, ToBase32};
 
 use core::fmt;
-use secp256k1::{ecdh::shared_secret_point, PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
+use secp256k1::{PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::collections::HashMap;
 
+use crate::utils::sending::calculate_shared_point;
 use crate::{common::calculate_t_n, error::Error, Network, Result};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -161,14 +162,8 @@ pub fn generate_recipient_pubkeys(
         if let Some((_, payments)) = silent_payment_groups.get_mut(&B_scan) {
             payments.push(address);
         } else {
-            // Since PublicKey::from_slice expects an uncompressed public key (0x04<64 bytes>),
-            // we first initialize a 65 byte array and add 0x04 as the first byte
-            let mut ss_bytes = [0u8; 65];
-            ss_bytes[0] = 0x04;
-
-            // Using `shared_secret_point` to ensure the multiplication is constant time
-            ss_bytes[1..].copy_from_slice(&shared_secret_point(&B_scan, &partial_secret));
-            let ecdh_shared_secret = PublicKey::from_slice(&ss_bytes)?;
+            let shared_point = calculate_shared_point(&B_scan, &partial_secret);
+            let ecdh_shared_secret = PublicKey::from_slice(&shared_point)?;
 
             silent_payment_groups.insert(B_scan, (ecdh_shared_secret, vec![address]));
         }
