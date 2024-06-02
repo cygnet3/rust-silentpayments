@@ -14,7 +14,6 @@
 //! Alternatively, have a look at [Sp client](https://github.com/cygnet3/sp-client/tree/master),
 //! which is a WIP wallet client for building silent payment wallets.
 #![allow(dead_code, non_snake_case)]
-mod common;
 mod error;
 
 #[cfg(feature = "receiving")]

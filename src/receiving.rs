@@ -16,8 +16,11 @@ use std::{
 };
 
 use crate::{
-    common::{calculate_P_n, calculate_t_n},
-    utils::{hash::LabelHash, Network},
+    utils::{
+        common::{calculate_P_n, calculate_t_n},
+        hash::LabelHash,
+        Network,
+    },
     Error, Result,
 };
 use bech32::ToBase32;
