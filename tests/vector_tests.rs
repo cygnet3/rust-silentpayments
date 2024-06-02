@@ -161,7 +161,7 @@ mod tests {
             assert_eq!(set1, set2);
 
             let tweak_data = calculate_tweak_data(&input_pub_keys, &outpoints).unwrap();
-            let ecdh_shared_secret = calculate_ecdh_shared_secret(&tweak_data, &b_scan).unwrap();
+            let ecdh_shared_secret = calculate_ecdh_shared_secret(&tweak_data, &b_scan);
 
             let scanned_outputs_received = sp_receiver
                 .scan_transaction(&ecdh_shared_secret, outputs_to_check)

@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let pubkeys_ref: Vec<&PublicKey> = input_pubkeys.iter().collect();
     let tweak_data = calculate_tweak_data(&pubkeys_ref, &outpoints)?;
-    let ecdh_shared_secret = calculate_ecdh_shared_secret(&tweak_data, &scan_privkey)?;
+    let ecdh_shared_secret = calculate_ecdh_shared_secret(&tweak_data, &scan_privkey);
 
     let pubkeys_to_check: Vec<_> = tx
         .output
