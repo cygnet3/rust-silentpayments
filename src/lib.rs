@@ -29,4 +29,3 @@ pub use secp256k1;
 pub use crate::error::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
-pub type Network = common::Network;

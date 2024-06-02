@@ -5,7 +5,7 @@ use bitcoin::bip32::{DerivationPath, Xpriv};
 use bitcoin::secp256k1::Secp256k1;
 
 use silentpayments::receiving::{Label, Receiver};
-use silentpayments::Network;
+use silentpayments::utils::Network;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let secp = Secp256k1::new();
