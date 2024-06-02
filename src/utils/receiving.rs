@@ -13,7 +13,8 @@ use secp256k1::{PublicKey, SecretKey};
 use super::{hash::calculate_input_hash, COMPRESSED_PUBKEY_SIZE, NUMS_H};
 
 /// Calculate the tweak data of a transaction.
-/// This is useful in combination with the `calculate_shared_secret` function, but can also be used
+///
+/// This is useful in combination with the [calculate_ecdh_shared_secret] function, but can also be used
 /// by indexing servers that don't have access to the recipient scan key.
 ///
 /// # Arguments
@@ -52,7 +53,7 @@ pub fn calculate_tweak_data(
 ///
 /// # Returns
 ///
-/// This function returns the shared secret of this transaction. This shared secret can be used to scan the transaction of outputs that are for the current user. See `receiving::scan_transaction`.
+/// This function returns the shared secret of this transaction. This shared secret can be used to scan the transaction of outputs that are for the current user. See [`Receiver::scan_transaction`](crate::receiving::Receiver::scan_transaction).
 ///
 /// # Errors
 ///
@@ -82,7 +83,7 @@ pub fn calculate_ecdh_shared_secret(
 ///
 /// # Returns
 ///
-/// If no errors occur, this function will optionally return a PublicKey if this input is silent payment-eligible.
+/// If no errors occur, this function will optionally return a [PublicKey] if this input is silent payment-eligible.
 ///
 /// # Errors
 ///

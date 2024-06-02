@@ -8,8 +8,8 @@ use super::hash::calculate_input_hash;
 ///
 /// # Arguments
 ///
-/// * `input_keys` - A reference to a list of tuples, each tuple containing a `SecretKey` and `bool`. The `SecretKey` is the private key used in the input, and the `bool` indicates whether this was from a taproot address.
-/// * `outpoints_data` - The prevout outpoints used as input for this transaction. Note that the txid is given in String format, which is displayed in reverse order from the inner byte array.
+/// * `input_keys` - A reference to a list of tuples, each tuple containing a [SecretKey] and [bool]. The [SecretKey] is the private key used in the input, and the [bool] indicates whether this was from a taproot address.
+/// * `outpoints_data` - The prevout outpoints used as input for this transaction. Note that the txid is given in [String] format, which is displayed in reverse order from the inner byte array.
 ///
 /// # Returns
 ///
@@ -37,12 +37,12 @@ pub fn calculate_partial_secret(
 
 /// Calculate the shared secret of a transaction.
 ///
-/// Since [`crate::sending::generate_recipient_pubkeys`] calls this function internally, it is not needed for the default sending flow.
+/// Since [generate_recipient_pubkeys](`crate::sending::generate_recipient_pubkeys`) calls this function internally, it is not needed for the default sending flow.
 ///
 /// # Arguments
 ///
 /// * `B_scan` - The scan public key used by the wallet.
-/// * `partial_secret` - the sum of all (eligible) input keys multiplied with the input hash, see `calculate_partial_secret`.
+/// * `partial_secret` - the sum of all (eligible) input keys multiplied with the input hash, see [calculate_partial_secret].
 ///
 /// # Returns
 ///

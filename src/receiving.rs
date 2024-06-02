@@ -1,15 +1,15 @@
 //! The receiving component of silent payments.
 //!
-//! For receiving, we use the `Receiver` struct.
+//! For receiving, we use the [`Receiver`] struct.
 //! This struct does not contain any private key information,
 //! so as to avoid having access to secret data.
 //!
-//! After creating a `Receiver` object, you can call `scan_transaction`,
+//! After creating a [`Receiver`] object, you can call [`scan_transaction`](Receiver::scan_transaction),
 //! to scan a specific transaction for outputs belonging to this receiver.
 //! For this, you need to have calculated the `ecdh_shared_secret` beforehand.
-//! To do so, you can use `utils::receiving::calculate_shared_secret`.
+//! To do so, you can use [`calculate_ecdh_shared_secret`](`crate::utils::receiving::calculate_ecdh_shared_secret`) from the `utils` module.
 //!
-//! For a concrete example, you can have a look at the [vector tests](https://github.com/cygnet3/rust-silentpayments/blob/master/tests/vector_tests.rs).
+//! For a concrete example, have a look at the [test vectors](https://github.com/cygnet3/rust-silentpayments/blob/master/tests/vector_tests.rs).
 use std::{
     collections::{HashMap, HashSet},
     fmt,
@@ -29,6 +29,7 @@ use serde::{
     Deserialize, Deserializer, Serialize,
 };
 
+/// A Silent payment receiving label.
 #[derive(Eq, PartialEq, Clone)]
 pub struct Label {
     s: Scalar,
@@ -103,9 +104,10 @@ impl From<Label> for Scalar {
 }
 
 /// A struct representing a silent payment recipient.
-/// It can be used to scan for transaction outputs belonging to us by using the scan_transaction function.
+///
+/// It can be used to scan for transaction outputs belonging to us by using the [`scan_transaction`](Receiver::scan_transaction) function.
 /// It optionally supports labels, which it manages internally.
-/// Labels can be added with the add_label function.
+/// Labels can be added with [`add_label`](Receiver::add_label).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Receiver {
     version: u8,
@@ -281,8 +283,8 @@ impl Receiver {
         Ok(receiver)
     }
 
-    /// Takes a Label and adds it to the list of labels that this recipient uses.
-    /// Returns a bool on success, `true` if the label was new, `false` if it already existed in our list.
+    /// Takes a [Label] and adds it to the list of labels that this recipient uses.
+    /// Returns a bool on success, [true] if the label was new, [false] if it already existed in our list.
     pub fn add_label(&mut self, label: Label) -> Result<bool> {
         let secp = Secp256k1::signing_only();
 
@@ -306,11 +308,11 @@ impl Receiver {
     ///
     /// # Arguments
     ///
-    /// * `label` - A reference to a Label.
+    /// * `label` - A reference to a [Label].
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `Result` wrapping a String, which is the bech32m encoded silent payment address.
+    /// If successful, the function returns a [Result] wrapping a [String], which is the bech32m encoded silent payment address.
     ///
     /// # Errors
     ///
@@ -348,7 +350,7 @@ impl Receiver {
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `String`, which is the bech32m encoded silent payment address.
+    /// If successful, the function returns a [String], which is the bech32m encoded silent payment address.
     pub fn get_receiving_address(&self) -> String {
         self.encode_silent_payment_address(self.spend_pubkey)
     }
@@ -357,19 +359,19 @@ impl Receiver {
     ///
     /// # Arguments
     ///
-    /// * `ecdh_shared_secret` -  The ECDH shared secret between sender and recipient as a PublicKey, the result of elliptic-curve multiplication of `(input_hash * sum_inputs_pubkeys) * scan_private_key`.
-    /// * `pubkeys_to_check` - A `HashSet` of public keys of all (unspent) taproot output of the transaction.
+    /// * `ecdh_shared_secret` -  The ECDH shared secret between sender and recipient as a [PublicKey], the result of elliptic-curve multiplication of `(input_hash * sum_inputs_pubkeys) * scan_private_key`.
+    /// * `pubkeys_to_check` - A [HashSet] of public keys of all (unspent) taproot output of the transaction.
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `Result` wrapping a `HashMap` of labels to a map of outputs to key tweaks (since the same label may have been paid multiple times in one transaction). The key tweaks can be added to the wallet's spending private key to produce a key that can spend the utxo. A resulting `HashMap` of length 0 implies none of the outputs are owned by us.
+    /// If successful, the function returns a [Result] wrapping a [HashMap] of labels to a map of outputs to key tweaks (since the same label may have been paid multiple times in one transaction). The key tweaks can be added to the wallet's spending private key to produce a key that can spend the utxo. A resulting [HashMap] of length 0 implies none of the outputs are owned by us.
     ///
     /// # Errors
     ///
     /// This function will return an error if:
     ///
     /// * One of the public keys to scan can't be parsed into a valid x-only public key.
-    /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
+    /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious.
     pub fn scan_transaction(
         &self,
         ecdh_shared_secret: &PublicKey,
@@ -423,13 +425,13 @@ impl Receiver {
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a `Result` wrapping a HashMap that maps an optional Label to a Script as a 34-byte vector. The script has the following format: `OP_PUSHNUM_1 OP_PUSHBYTES_32 taproot_output`
+    /// If successful, the function returns a [Result] wrapping a [HashMap] that maps an optional [Label] to a Script as a 34-byte vector. The script has the following format: `OP_PUSHNUM_1 OP_PUSHBYTES_32 taproot_output`
     ///
     /// # Errors
     ///
     /// This function will return an error if:
     ///
-    /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious. (?)
+    /// * An error occurs during elliptic curve computation. This may happen if a sender is being malicious.
     pub fn get_spks_from_shared_secret(
         &self,
         ecdh_shared_secret: &PublicKey,
