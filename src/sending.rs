@@ -14,7 +14,7 @@ use core::fmt;
 use secp256k1::{PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::collections::HashMap;
 
-use crate::utils::sending::calculate_shared_point;
+use crate::utils::sending::calculate_ecdh_shared_secret;
 use crate::{common::calculate_t_n, error::Error, Network, Result};
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
@@ -162,8 +162,7 @@ pub fn generate_recipient_pubkeys(
         if let Some((_, payments)) = silent_payment_groups.get_mut(&B_scan) {
             payments.push(address);
         } else {
-            let shared_point = calculate_shared_point(&B_scan, &partial_secret);
-            let ecdh_shared_secret = PublicKey::from_slice(&shared_point)?;
+            let ecdh_shared_secret = calculate_ecdh_shared_secret(&B_scan, &partial_secret)?;
 
             silent_payment_groups.insert(B_scan, (ecdh_shared_secret, vec![address]));
         }

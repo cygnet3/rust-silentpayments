@@ -9,7 +9,7 @@ use bitcoin_hashes::hex::FromHex;
 
 use silentpayments::receiving::{Label, Receiver};
 use silentpayments::utils::receiving::{
-    calculate_shared_point, calculate_tweak_data, get_pubkey_from_input,
+    calculate_ecdh_shared_secret, calculate_tweak_data, get_pubkey_from_input,
 };
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -70,8 +70,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let pubkeys_ref: Vec<&PublicKey> = input_pubkeys.iter().collect();
     let tweak_data = calculate_tweak_data(&pubkeys_ref, &outpoints)?;
-    let ecdh_shared_point = calculate_shared_point(&tweak_data, &scan_privkey);
-    let shared_public_key = PublicKey::from_slice(&ecdh_shared_point)?;
+    let ecdh_shared_secret = calculate_ecdh_shared_secret(&tweak_data, &scan_privkey)?;
 
     let pubkeys_to_check: Vec<_> = tx
         .output
@@ -83,7 +82,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect();
 
-    let my_outputs = receiver.scan_transaction(&shared_public_key, pubkeys_to_check)?;
+    let my_outputs = receiver.scan_transaction(&ecdh_shared_secret, pubkeys_to_check)?;
 
     println!("Found {} outputs", my_outputs.len());
 

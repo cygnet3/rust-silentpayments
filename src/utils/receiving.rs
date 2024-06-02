@@ -59,13 +59,17 @@ pub fn calculate_tweak_data(
 /// This function will error if:
 ///
 /// * Elliptic curve computation results in an invalid public key.
-pub fn calculate_shared_point(tweak_data: &PublicKey, b_scan: &SecretKey) -> [u8; 65] {
+pub fn calculate_ecdh_shared_secret(
+    tweak_data: &PublicKey,
+    b_scan: &SecretKey,
+) -> Result<PublicKey> {
     let mut ss_bytes = [0u8; 65];
     ss_bytes[0] = 0x04;
 
     // Using `shared_secret_point` to ensure the multiplication is constant time
     ss_bytes[1..].copy_from_slice(&shared_secret_point(&tweak_data, &b_scan));
-    ss_bytes
+
+    Ok(PublicKey::from_slice(&ss_bytes)?)
 }
 
 /// Get the public keys from a set of input data.

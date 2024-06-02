@@ -7,7 +7,7 @@ mod tests {
         receiving::Label,
         utils::{
             receiving::{
-                calculate_shared_point, calculate_tweak_data, get_pubkey_from_input, is_p2tr,
+                calculate_ecdh_shared_secret, calculate_tweak_data, get_pubkey_from_input, is_p2tr,
             },
             sending::calculate_partial_secret,
         },
@@ -161,11 +161,10 @@ mod tests {
             assert_eq!(set1, set2);
 
             let tweak_data = calculate_tweak_data(&input_pub_keys, &outpoints).unwrap();
-            let shared_point = calculate_shared_point(&tweak_data, &b_scan);
-            let shared_public_key = PublicKey::from_slice(&shared_point).unwrap();
+            let ecdh_shared_secret = calculate_ecdh_shared_secret(&tweak_data, &b_scan).unwrap();
 
             let scanned_outputs_received = sp_receiver
-                .scan_transaction(&shared_public_key, outputs_to_check)
+                .scan_transaction(&ecdh_shared_secret, outputs_to_check)
                 .unwrap();
 
             let key_tweaks: Vec<Scalar> = scanned_outputs_received
