@@ -1,11 +1,10 @@
 //! The sending component of silent payments.
 //!
-//! The most relevant function is `generate_recipient_pubkeys`,
-//! which can be used to create outputs for a list of silent payment receipients.
+//! The [`generate_recipient_pubkeys`] function can be used to create outputs for a list of silent payment recipients.
 //!
-//! Using `generate_recipient_pubkeys` will require calculating a
+//! Using [`generate_recipient_pubkeys`] will require calculating a
 //! `partial_secret` beforehand.
-//! To do this, you can use the function from `utils::sending::calculate_partial_secret`.
+//! To do this, you can use [`calculate_partial_secret`](crate::utils::sending::calculate_partial_secret) from the `utils` module.
 //! See the [tests on github](https://github.com/cygnet3/rust-silentpayments/blob/master/tests/vector_tests.rs)
 //! for a concrete example.
 use bech32::{FromBase32, ToBase32};
@@ -17,6 +16,7 @@ use std::collections::HashMap;
 use crate::utils::sending::calculate_ecdh_shared_secret;
 use crate::{common::calculate_t_n, error::Error, Network, Result};
 
+/// A silent payment address struct.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct SilentPaymentAddress {
     version: u8,
@@ -128,24 +128,26 @@ impl From<SilentPaymentAddress> for String {
 }
 
 /// Create outputs for a given set of silent payment recipients and their corresponding shared secrets.
+///
 /// When creating the outputs for a transaction, this function should be used to generate the output keys.
+///
 /// This function should only be used once per transaction! If used multiple times, address reuse may occur.
 ///
 /// # Arguments
 ///
-/// * `recipients` - A `Vec` of silent payment addresses to be paid.
-/// * `partial_secret` - A `SecretKey` that represents the sum of the private keys of eligible inputs of the transaction multiplied by the input hash.
+/// * `recipients` - A [Vec] of silent payment addresses strings to be paid.
+/// * `partial_secret` - A [SecretKey] that represents the sum of the private keys of eligible inputs of the transaction multiplied by the input hash.
 ///
 /// # Returns
 ///
-/// If successful, the function returns a `Result` wrapping a `HashMap` of silent payment addresses to a `Vec`.
-/// The `Vec` contains all the outputs that are associated with the silent payment address.
+/// If successful, the function returns a [Result] wrapping a [HashMap] of silent payment addresses to a [Vec].
+/// The [Vec] contains all the outputs that are associated with the silent payment address.
 ///
 /// # Errors
 ///
 /// This function will return an error if:
 ///
-/// * The recipients Vec contains a silent payment address with an incorrect format.
+/// * The recipients [Vec] contains a silent payment address with an incorrect format.
 /// * Edge cases are hit during elliptic curve computation (extremely unlikely).
 pub fn generate_recipient_pubkeys(
     recipients: Vec<String>,
