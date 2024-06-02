@@ -8,7 +8,7 @@ pub mod receiving;
 #[cfg(feature = "sending")]
 pub mod sending;
 
-mod common;
+pub(crate) mod common;
 
 pub use common::Network;
 pub use common::SilentPaymentAddress;
