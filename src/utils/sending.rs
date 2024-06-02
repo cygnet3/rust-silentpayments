@@ -37,6 +37,8 @@ pub fn calculate_partial_secret(
 
 /// Calculate the shared secret of a transaction.
 ///
+/// Since [`crate::sending::generate_recipient_pubkeys`] calls this function internally, it is not needed for the default sending flow.
+///
 /// # Arguments
 ///
 /// * `B_scan` - The scan public key used by the wallet.
@@ -44,20 +46,24 @@ pub fn calculate_partial_secret(
 ///
 /// # Returns
 ///
-/// This function returns the shared secret point of this transaction. This shared secret can be used to generate output keys for the recipient, see `sending::generate_recipient_pubkeys`
+/// This function returns the shared secret of this transaction. This shared secret can be used to generate output keys for the recipient.
 ///
 /// # Errors
 ///
 /// This function will error if:
 ///
 /// * Elliptic curve computation results in an invalid public key.
-pub fn calculate_shared_point(B_scan: &PublicKey, partial_secret: &SecretKey) -> [u8; 65] {
+pub fn calculate_ecdh_shared_secret(
+    B_scan: &PublicKey,
+    partial_secret: &SecretKey,
+) -> Result<PublicKey> {
     let mut ss_bytes = [0u8; 65];
     ss_bytes[0] = 0x04;
 
     // Using `shared_secret_point` to ensure the multiplication is constant time
     ss_bytes[1..].copy_from_slice(&shared_secret_point(B_scan, partial_secret));
-    ss_bytes
+
+    Ok(PublicKey::from_slice(&ss_bytes)?)
 }
 
 fn get_a_sum_secret_keys(input: &[(SecretKey, bool)]) -> Result<SecretKey> {
