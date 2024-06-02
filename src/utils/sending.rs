@@ -53,17 +53,14 @@ pub fn calculate_partial_secret(
 /// This function will error if:
 ///
 /// * Elliptic curve computation results in an invalid public key.
-pub fn calculate_ecdh_shared_secret(
-    B_scan: &PublicKey,
-    partial_secret: &SecretKey,
-) -> Result<PublicKey> {
+pub fn calculate_ecdh_shared_secret(B_scan: &PublicKey, partial_secret: &SecretKey) -> PublicKey {
     let mut ss_bytes = [0u8; 65];
     ss_bytes[0] = 0x04;
 
     // Using `shared_secret_point` to ensure the multiplication is constant time
     ss_bytes[1..].copy_from_slice(&shared_secret_point(B_scan, partial_secret));
 
-    Ok(PublicKey::from_slice(&ss_bytes)?)
+    PublicKey::from_slice(&ss_bytes).expect("guaranteed to be a point on the curve")
 }
 
 fn get_a_sum_secret_keys(input: &[(SecretKey, bool)]) -> Result<SecretKey> {

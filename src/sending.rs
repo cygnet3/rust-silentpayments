@@ -162,7 +162,7 @@ pub fn generate_recipient_pubkeys(
         if let Some((_, payments)) = silent_payment_groups.get_mut(&B_scan) {
             payments.push(address);
         } else {
-            let ecdh_shared_secret = calculate_ecdh_shared_secret(&B_scan, &partial_secret)?;
+            let ecdh_shared_secret = calculate_ecdh_shared_secret(&B_scan, &partial_secret);
 
             silent_payment_groups.insert(B_scan, (ecdh_shared_secret, vec![address]));
         }
