@@ -10,8 +10,8 @@ mod tests {
                 calculate_ecdh_shared_secret, calculate_tweak_data, get_pubkey_from_input, is_p2tr,
             },
             sending::calculate_partial_secret,
+            Network,
         },
-        Network,
     };
     use std::{collections::HashSet, io::Cursor, str::FromStr};
 

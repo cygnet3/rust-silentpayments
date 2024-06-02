@@ -7,125 +7,13 @@
 //! To do this, you can use [`calculate_partial_secret`](crate::utils::sending::calculate_partial_secret) from the `utils` module.
 //! See the [tests on github](https://github.com/cygnet3/rust-silentpayments/blob/master/tests/vector_tests.rs)
 //! for a concrete example.
-use bech32::{FromBase32, ToBase32};
 
-use core::fmt;
 use secp256k1::{PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::collections::HashMap;
 
 use crate::utils::sending::calculate_ecdh_shared_secret;
-use crate::{common::calculate_t_n, error::Error, Network, Result};
-
-/// A silent payment address struct.
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
-pub struct SilentPaymentAddress {
-    version: u8,
-    scan_pubkey: PublicKey,
-    m_pubkey: PublicKey,
-    network: Network,
-}
-
-impl SilentPaymentAddress {
-    pub fn new(
-        scan_pubkey: PublicKey,
-        m_pubkey: PublicKey,
-        network: Network,
-        version: u8,
-    ) -> Result<Self> {
-        if version != 0 {
-            return Err(Error::GenericError(
-                "Can't have other version than 0 for now".to_owned(),
-            ));
-        }
-
-        Ok(SilentPaymentAddress {
-            scan_pubkey,
-            m_pubkey,
-            network,
-            version,
-        })
-    }
-
-    pub fn get_scan_key(&self) -> PublicKey {
-        self.scan_pubkey
-    }
-
-    pub fn get_spend_key(&self) -> PublicKey {
-        self.m_pubkey
-    }
-
-    pub fn get_network(&self) -> Network {
-        self.network
-    }
-}
-
-impl fmt::Display for SilentPaymentAddress {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", <SilentPaymentAddress as Into<String>>::into(*self))
-    }
-}
-
-impl TryFrom<&str> for SilentPaymentAddress {
-    type Error = Error;
-
-    fn try_from(addr: &str) -> Result<Self> {
-        let (hrp, data, _variant) = bech32::decode(addr)?;
-
-        if data.len() != 107 {
-            return Err(Error::GenericError("Address length is wrong".to_owned()));
-        }
-
-        let version = data[0].to_u8();
-
-        let network = match hrp.as_str() {
-            "sp" => Network::Mainnet,
-            "tsp" => Network::Testnet,
-            "sprt" => Network::Regtest,
-            _ => {
-                return Err(Error::InvalidAddress(format!(
-                    "Wrong prefix, expected \"sp\", \"tsp\", or \"sprt\", got \"{}\"",
-                    &hrp
-                )))
-            }
-        };
-
-        let data = Vec::<u8>::from_base32(&data[1..])?;
-
-        let scan_pubkey = PublicKey::from_slice(&data[..33])?;
-        let m_pubkey = PublicKey::from_slice(&data[33..])?;
-
-        SilentPaymentAddress::new(scan_pubkey, m_pubkey, network, version)
-    }
-}
-
-impl TryFrom<String> for SilentPaymentAddress {
-    type Error = Error;
-
-    fn try_from(addr: String) -> Result<Self> {
-        addr.as_str().try_into()
-    }
-}
-
-impl From<SilentPaymentAddress> for String {
-    fn from(val: SilentPaymentAddress) -> Self {
-        let hrp = match val.network {
-            Network::Testnet => "tsp",
-            Network::Regtest => "sprt",
-            Network::Mainnet => "sp",
-        };
-
-        let version = bech32::u5::try_from_u8(val.version).unwrap();
-
-        let B_scan_bytes = val.scan_pubkey.serialize();
-        let B_m_bytes = val.m_pubkey.serialize();
-
-        let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
-
-        data.insert(0, version);
-
-        bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
-    }
-}
+use crate::utils::SilentPaymentAddress;
+use crate::{common::calculate_t_n, Result};
 
 /// Create outputs for a given set of silent payment recipients and their corresponding shared secrets.
 ///
@@ -159,7 +47,7 @@ pub fn generate_recipient_pubkeys(
         HashMap::new();
     for address in recipients {
         let address: SilentPaymentAddress = address.try_into()?;
-        let B_scan = address.scan_pubkey;
+        let B_scan = address.get_scan_key();
 
         if let Some((_, payments)) = silent_payment_groups.get_mut(&B_scan) {
             payments.push(address);
@@ -180,7 +68,7 @@ pub fn generate_recipient_pubkeys(
             let t_n = calculate_t_n(&ecdh_shared_secret, n)?;
 
             let res = t_n.public_key(&secp);
-            let reskey = res.combine(&addr.m_pubkey)?;
+            let reskey = res.combine(&addr.get_spend_key())?;
             let (reskey_xonly, _) = reskey.x_only_public_key();
 
             let entry = result.entry(addr.into()).or_default();

@@ -17,8 +17,8 @@ use std::{
 
 use crate::{
     common::{calculate_P_n, calculate_t_n},
-    utils::hash::LabelHash,
-    Error, Network, Result,
+    utils::{hash::LabelHash, Network},
+    Error, Result,
 };
 use bech32::ToBase32;
 use bimap::BiMap;
