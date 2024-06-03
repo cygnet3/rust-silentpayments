@@ -53,12 +53,6 @@ pub fn calculate_tweak_data(
 /// # Returns
 ///
 /// This function returns the shared secret of this transaction. This shared secret can be used to scan the transaction of outputs that are for the current user. See `receiving::scan_transaction`.
-///
-/// # Errors
-///
-/// This function will error if:
-///
-/// * Elliptic curve computation results in an invalid public key.
 pub fn calculate_ecdh_shared_secret(tweak_data: &PublicKey, b_scan: &SecretKey) -> PublicKey {
     let mut ss_bytes = [0u8; 65];
     ss_bytes[0] = 0x04;

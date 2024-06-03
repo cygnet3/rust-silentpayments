@@ -47,12 +47,6 @@ pub fn calculate_partial_secret(
 /// # Returns
 ///
 /// This function returns the shared secret of this transaction. This shared secret can be used to generate output keys for the recipient.
-///
-/// # Errors
-///
-/// This function will error if:
-///
-/// * Elliptic curve computation results in an invalid public key.
 pub fn calculate_ecdh_shared_secret(B_scan: &PublicKey, partial_secret: &SecretKey) -> PublicKey {
     let mut ss_bytes = [0u8; 65];
     ss_bytes[0] = 0x04;
