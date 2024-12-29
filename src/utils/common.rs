@@ -6,6 +6,8 @@ use crate::Result;
 use bech32::{FromBase32, ToBase32};
 use bitcoin_hashes::Hash;
 use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
+use serde::ser::Serializer;
+use serde::Deserializer;
 use serde::{Deserialize, Serialize};
 
 pub(crate) fn calculate_t_n(ecdh_shared_secret: &PublicKey, k: u32) -> Result<SecretKey> {
@@ -41,6 +43,27 @@ pub struct SilentPaymentAddress {
     scan_pubkey: PublicKey,
     m_pubkey: PublicKey,
     network: Network,
+}
+
+impl Serialize for SilentPaymentAddress {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let encoded: String = self.clone().into();
+        serializer.serialize_str(&encoded)
+    }
+}
+
+impl<'de> Deserialize<'de> for SilentPaymentAddress {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let addr_str: String = Deserialize::deserialize(deserializer)?;
+
+        SilentPaymentAddress::try_from(addr_str.as_str()).map_err(serde::de::Error::custom)
+    }
 }
 
 impl SilentPaymentAddress {
