@@ -25,7 +25,7 @@ use crate::{
 };
 use bech32::ToBase32;
 use bimap::BiMap;
-use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
+use secp256k1::{All, Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use serde::{
     de::{self, SeqAccess, Visitor},
     ser::{SerializeStruct, SerializeTuple},
@@ -113,6 +113,7 @@ impl From<Label> for Scalar {
 /// Labels can be added with [`add_label`](Receiver::add_label).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Receiver {
+    secp: Secp256k1<All>,
     version: u8,
     scan_pubkey: PublicKey,
     spend_pubkey: PublicKey,
@@ -244,6 +245,7 @@ impl<'de> Deserialize<'de> for Receiver {
     {
         let helper = ReceiverHelper::deserialize(deserializer)?;
         Ok(Receiver {
+            secp: secp256k1::Secp256k1::new(),
             version: helper.version,
             network: helper.network,
             scan_pubkey: PublicKey::from_slice(&helper.scan_pubkey.0).unwrap(),
@@ -272,6 +274,7 @@ impl Receiver {
         }
 
         let mut receiver = Receiver {
+            secp: secp256k1::Secp256k1::new(),
             version: version as u8,
             scan_pubkey,
             spend_pubkey,
@@ -289,10 +292,8 @@ impl Receiver {
     /// Takes a [Label] and adds it to the list of labels that this recipient uses.
     /// Returns a bool on success, [true] if the label was new, [false] if it already existed in our list.
     pub fn add_label(&mut self, label: Label) -> Result<bool> {
-        let secp = Secp256k1::signing_only();
-
         let m = SecretKey::from_slice(&label.as_inner().to_be_bytes())?;
-        let mG = m.public_key(&secp);
+        let mG = m.public_key(&self.secp);
 
         // check that the combined key with spend_key is valid
         mG.combine(&self.spend_pubkey)?;
@@ -342,7 +343,7 @@ impl Receiver {
     pub fn get_change_address(&self) -> String {
         let sk = SecretKey::from_slice(&self.change_label.as_inner().to_be_bytes())
             .expect("Unexpected invalid change label");
-        let pk = sk.public_key(&Secp256k1::signing_only());
+        let pk = sk.public_key(&self.secp);
         let B_m = pk
             .combine(&self.spend_pubkey)
             .expect("Unexpected invalid pubkey");
@@ -380,8 +381,6 @@ impl Receiver {
         ecdh_shared_secret: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
     ) -> Result<HashMap<Option<Label>, HashMap<XOnlyPublicKey, Scalar>>> {
-        let secp = secp256k1::Secp256k1::new();
-
         let mut found: HashMap<Option<Label>, HashMap<XOnlyPublicKey, Scalar>> = HashMap::new();
         let mut n_found: u32 = 0;
         let mut n: u32 = 0;
@@ -397,8 +396,8 @@ impl Receiver {
                 'outer: for p in &pubkeys_to_check {
                     let even_output = p.public_key(Parity::Even);
                     let odd_output = p.public_key(Parity::Odd);
-                    let even_diff = even_output.combine(&P_n.negate(&secp))?;
-                    let odd_diff = odd_output.combine(&P_n.negate(&secp))?;
+                    let even_diff = even_output.combine(&P_n.negate(&self.secp))?;
+                    let odd_diff = odd_output.combine(&P_n.negate(&self.secp))?;
 
                     for diff in [even_diff, odd_diff] {
                         if let Some(label) = self.labels.get_by_right(&diff) {
