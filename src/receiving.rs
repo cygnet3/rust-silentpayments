@@ -19,11 +19,9 @@ use crate::{
     utils::{
         common::{calculate_P_n, calculate_t_n},
         hash::LabelHash,
-        Network,
     },
-    Error, Result,
+    Error, Network, Result, SilentPaymentAddress,
 };
-use bech32::ToBase32;
 use bimap::BiMap;
 use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use serde::{
@@ -315,7 +313,7 @@ impl Receiver {
     ///
     /// # Returns
     ///
-    /// If successful, the function returns a [Result] wrapping a [String], which is the bech32m encoded silent payment address.
+    /// If successful, the function returns a [Result] wrapping a [SilentPaymentAddress] struct.
     ///
     /// # Errors
     ///
@@ -323,11 +321,11 @@ impl Receiver {
     ///
     /// * If the label is not known for this recipient.
     /// * If key addition results in an invalid key.
-    pub fn get_receiving_address_for_label(&self, label: &Label) -> Result<String> {
+    pub fn get_receiving_address_for_label(&self, label: &Label) -> Result<SilentPaymentAddress> {
         match self.labels.get_by_left(label) {
             Some(mG) => {
                 let B_m = mG.combine(&self.spend_pubkey)?;
-                Ok(self.encode_silent_payment_address(B_m))
+                Ok(self.get_silent_payment_address(B_m))
             }
             None => Err(Error::InvalidLabel("Label not known".to_owned())),
         }
@@ -339,23 +337,19 @@ impl Receiver {
     /// by sending to this static change address, much like sending to a normal
     /// silent payment address.
     /// Important note: this address should never be shown to the user!
-    pub fn get_change_address(&self) -> String {
+    pub fn get_change_address(&self) -> SilentPaymentAddress {
         let sk = SecretKey::from_slice(&self.change_label.as_inner().to_be_bytes())
             .expect("Unexpected invalid change label");
         let pk = sk.public_key(&Secp256k1::signing_only());
         let B_m = pk
             .combine(&self.spend_pubkey)
             .expect("Unexpected invalid pubkey");
-        self.encode_silent_payment_address(B_m)
+        self.get_silent_payment_address(B_m)
     }
 
-    /// Get the bech32m-encoded silent payment address.
-    ///
-    /// # Returns
-    ///
-    /// If successful, the function returns a [String], which is the bech32m encoded silent payment address.
-    pub fn get_receiving_address(&self) -> String {
-        self.encode_silent_payment_address(self.spend_pubkey)
+    /// Get the default, no-label silent payment address.
+    pub fn get_receiving_address(&self) -> SilentPaymentAddress {
+        self.get_silent_payment_address(self.spend_pubkey)
     }
 
     /// Scans a transaction for outputs belonging to us.
@@ -466,23 +460,9 @@ impl Receiver {
         Ok(res)
     }
 
-    fn encode_silent_payment_address(&self, m_pubkey: PublicKey) -> String {
-        let hrp = match self.network {
-            Network::Mainnet => "sp",
-            Network::Testnet => "tsp",
-            Network::Regtest => "sprt",
-        };
-
-        let version = bech32::u5::try_from_u8(self.version).unwrap();
-
-        let B_scan_bytes = self.scan_pubkey.serialize();
-        let B_m_bytes = m_pubkey.serialize();
-
-        let mut data = [B_scan_bytes, B_m_bytes].concat().to_base32();
-
-        data.insert(0, version);
-
-        bech32::encode(hrp, data, bech32::Variant::Bech32m).unwrap()
+    fn get_silent_payment_address(&self, m_pubkey: PublicKey) -> SilentPaymentAddress {
+        SilentPaymentAddress::new(self.scan_pubkey, m_pubkey, self.network, 0)
+            .expect("only fails if version != 0")
     }
 }
 
