@@ -10,9 +10,6 @@ pub mod sending;
 
 pub(crate) mod common;
 
-pub use common::Network;
-pub use common::SilentPaymentAddress;
-
 /// [BIP341](https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki)-defined 'Nothing Up My Sleeve' point.
 pub const NUMS_H: [u8; 32] = [
     0x50, 0x92, 0x9b, 0x74, 0xc1, 0xa0, 0x49, 0x54, 0xb7, 0x8b, 0x4b, 0x60, 0x35, 0xe9, 0x7a, 0x5e,

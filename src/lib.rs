@@ -26,6 +26,7 @@ pub use bitcoin_hashes;
 pub use secp256k1;
 
 pub use crate::error::Error;
+pub use utils::common::Network;
 pub use utils::common::SilentPaymentAddress;
 
 pub type Result<T> = std::result::Result<T, Error>;

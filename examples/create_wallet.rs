@@ -7,7 +7,7 @@ use bitcoin::secp256k1::Secp256k1;
 
 // Import types from the silentpayments library
 use silentpayments::receiving::{Label, Receiver};
-use silentpayments::utils::Network;
+use silentpayments::Network;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Create a new instance of Secp256k1 for cryptographic operations
