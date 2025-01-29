@@ -10,8 +10,8 @@ mod tests {
                 calculate_ecdh_shared_secret, calculate_tweak_data, get_pubkey_from_input, is_p2tr,
             },
             sending::calculate_partial_secret,
-            Network,
         },
+        Network, SilentPaymentAddress,
     };
     use std::{collections::HashSet, io::Cursor, str::FromStr};
 
@@ -138,7 +138,7 @@ mod tests {
                 sp_receiver.add_label(label).unwrap();
             }
 
-            let mut receiving_addresses: HashSet<String> = HashSet::new();
+            let mut receiving_addresses: HashSet<SilentPaymentAddress> = HashSet::new();
             // get receiving address for no label
             receiving_addresses.insert(sp_receiver.get_receiving_address());
 
