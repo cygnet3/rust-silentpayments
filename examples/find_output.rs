@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         scan_privkey.public_key(&secp),
         spend_privkey.public_key(&secp),
         change_label,
-        silentpayments::utils::Network::Testnet,
+        silentpayments::Network::Testnet,
     )?;
 
     // Extract outpoints (previous transaction outputs) from the transaction inputs and store them in a vector
