@@ -36,6 +36,16 @@ pub enum Network {
     Regtest,
 }
 
+impl From<Network> for &str {
+    fn from(value: Network) -> Self {
+        match value {
+            Network::Mainnet => "bitcoin", // we use the same string as rust-bitcoin for compatibility
+            Network::Regtest => "regtest",
+            Network::Testnet => "testnet",
+        }
+    }
+}
+
 /// A silent payment address struct that can be used to deserialize a silent payment address string.
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub struct SilentPaymentAddress {
