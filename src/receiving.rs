@@ -104,6 +104,25 @@ impl From<Label> for Scalar {
     }
 }
 
+impl Serialize for Label {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.as_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Label {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value: String = String::deserialize(deserializer)?;
+        value.try_into().map_err(serde::de::Error::custom)
+    }
+}
+
 /// A struct representing a silent payment recipient.
 ///
 /// It can be used to scan for transaction outputs belonging to us by using the [`scan_transaction`](Receiver::scan_transaction) function.
@@ -176,10 +195,10 @@ impl Serialize for SerializableBiMap {
     where
         S: serde::Serializer,
     {
-        let pairs: Vec<(String, SerializablePubkey)> = self
+        let pairs: Vec<(Label, SerializablePubkey)> = self
             .0
             .iter()
-            .map(|(label, pubkey)| (label.as_string(), SerializablePubkey(pubkey.serialize())))
+            .map(|(label, pubkey)| (label.to_owned(), SerializablePubkey(pubkey.serialize())))
             .collect();
         // Now serialize `pairs` as a vector of tuples
         pairs.serialize(serializer)
@@ -191,13 +210,10 @@ impl<'de> Deserialize<'de> for SerializableBiMap {
     where
         D: Deserializer<'de>,
     {
-        let pairs: Vec<(String, SerializablePubkey)> = Deserialize::deserialize(deserializer)?;
+        let pairs: Vec<(Label, SerializablePubkey)> = Deserialize::deserialize(deserializer)?;
         let mut bimap: BiMap<Label, PublicKey> = BiMap::new();
-        for (string, ser_pubkey) in pairs {
-            bimap.insert(
-                Label::try_from(string).unwrap(),
-                PublicKey::from_slice(&ser_pubkey.0).unwrap(),
-            );
+        for (label, ser_pubkey) in pairs {
+            bimap.insert(label, PublicKey::from_slice(&ser_pubkey.0).unwrap());
         }
         Ok(SerializableBiMap(bimap))
     }
@@ -219,7 +235,7 @@ impl Serialize for Receiver {
             "spend_pubkey",
             &SerializablePubkey(self.spend_pubkey.serialize()),
         )?;
-        state.serialize_field("change_label", &self.change_label.as_string())?;
+        state.serialize_field("change_label", &self.change_label)?;
         state.serialize_field("labels", &SerializableBiMap(self.labels.clone()))?;
         state.end()
     }
@@ -475,6 +491,18 @@ mod tests {
         let s: String =
             "8e4bbee712779f746337cadf39e8b1eab8e8869dd40f2e3a7281113e858ffc0b".to_owned();
         Label::try_from(s).unwrap();
+    }
+
+    #[test]
+    fn deserialize_label() {
+        let s: String =
+            "\"8e4bbee712779f746337cadf39e8b1eab8e8869dd40f2e3a7281113e858ffc0b\"".to_owned();
+
+        let label: Label = serde_json::from_str(&s).unwrap();
+
+        let label_str = serde_json::to_string(&label).unwrap();
+
+        assert_eq!(label_str, s);
     }
 
     #[test]
