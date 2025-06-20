@@ -54,12 +54,7 @@ impl TryFrom<&str> for Network {
             "bitcoin" | "main" => Self::Mainnet, // We also take the core style argument
             "regtest" => Self::Regtest,
             "testnet" | "signet" | "test" => Self::Testnet, // core arg
-            _ => {
-                return Err(Error::GenericError(format!(
-                    "Unknown value for network: {}",
-                    value
-                )))
-            }
+            _ => return Err(Error::InvalidNetwork(value.to_string())),
         };
         Ok(res)
     }
