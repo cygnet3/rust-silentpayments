@@ -1,6 +1,6 @@
+use crate::secp256k1::{PublicKey, Scalar, SecretKey};
 use crate::Error;
 use bitcoin_hashes::{sha256t_hash_newtype, Hash, HashEngine};
-use secp256k1::{PublicKey, Scalar, SecretKey};
 
 sha256t_hash_newtype! {
     pub(crate) struct InputsTag = hash_str("BIP0352/Inputs");

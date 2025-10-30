@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let passphrase = "".to_owned();
 
     // Print the generated mnemonic phrase to the console
-    println!("Mnemonic phrase: {}", m.to_string());
+    println!("Mnemonic phrase: {}", m);
 
     // Convert the mnemonic phrase into a seed for cryptographic operations
     let master_key = Xpriv::new_master(bitcoin::Network::Signet, &m.to_seed(passphrase))?;

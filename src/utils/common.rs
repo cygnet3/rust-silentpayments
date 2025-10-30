@@ -1,11 +1,11 @@
 use core::fmt;
 
+use crate::secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
 use crate::utils::hash::SharedSecretHash;
 use crate::Error;
 use crate::Result;
 use bech32::{FromBase32, ToBase32};
 use bitcoin_hashes::Hash;
-use secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
 use serde::ser::Serializer;
 use serde::Deserializer;
 use serde::{Deserialize, Serialize};
@@ -74,7 +74,7 @@ impl Serialize for SilentPaymentAddress {
     where
         S: Serializer,
     {
-        let encoded: String = self.clone().into();
+        let encoded: String = (*self).into();
         serializer.serialize_str(&encoded)
     }
 }

@@ -1,4 +1,6 @@
 //! Receiving utility functions.
+use crate::secp256k1::{ecdh::shared_secret_point, Parity::Even, XOnlyPublicKey};
+use crate::secp256k1::{PublicKey, SecretKey};
 use crate::{
     utils::{
         OP_0, OP_1, OP_CHECKSIG, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_HASH160, OP_PUSHBYTES_20,
@@ -7,8 +9,6 @@ use crate::{
     Error, Result,
 };
 use bitcoin_hashes::{hash160, Hash};
-use secp256k1::{ecdh::shared_secret_point, Parity::Even, XOnlyPublicKey};
-use secp256k1::{PublicKey, SecretKey};
 
 use super::{hash::calculate_input_hash, COMPRESSED_PUBKEY_SIZE, NUMS_H};
 
@@ -37,7 +37,7 @@ pub fn calculate_tweak_data(
     input_pub_keys: &[&PublicKey],
     outpoints_data: &[(String, u32)],
 ) -> Result<PublicKey> {
-    let secp = secp256k1::Secp256k1::verification_only();
+    let secp = crate::secp256k1::Secp256k1::verification_only();
     let A_sum = PublicKey::combine_keys(input_pub_keys)?;
     let input_hash = calculate_input_hash(outpoints_data, A_sum)?;
 
@@ -60,7 +60,7 @@ pub fn calculate_ecdh_shared_secret(tweak_data: &PublicKey, b_scan: &SecretKey) 
     ss_bytes[0] = 0x04;
 
     // Using `shared_secret_point` to ensure the multiplication is constant time
-    ss_bytes[1..].copy_from_slice(&shared_secret_point(&tweak_data, &b_scan));
+    ss_bytes[1..].copy_from_slice(&shared_secret_point(tweak_data, b_scan));
 
     PublicKey::from_slice(&ss_bytes).expect("guaranteed to be a point on the curve")
 }
@@ -84,7 +84,7 @@ pub fn calculate_ecdh_shared_secret(tweak_data: &PublicKey, b_scan: &SecretKey) 
 /// * The provided Vin data is incorrect.
 pub fn get_pubkey_from_input(
     script_sig: &[u8],
-    txinwitness: &Vec<Vec<u8>>,
+    txinwitness: &[Vec<u8>],
     script_pub_key: &[u8],
 ) -> Result<Option<PublicKey>> {
     if is_p2pkh(script_pub_key) {

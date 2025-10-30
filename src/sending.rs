@@ -8,7 +8,7 @@
 //! See the [tests on github](https://github.com/cygnet3/rust-silentpayments/blob/master/tests/vector_tests.rs)
 //! for a concrete example.
 
-use secp256k1::{PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
+use crate::secp256k1::{PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
 use std::collections::HashMap;
 
 use crate::utils::common::calculate_t_n;
@@ -60,20 +60,17 @@ pub fn generate_recipient_pubkeys(
 
     let mut result: HashMap<SilentPaymentAddress, Vec<XOnlyPublicKey>> = HashMap::new();
     for group in silent_payment_groups.into_values() {
-        let mut n = 0;
-
         let (ecdh_shared_secret, recipients) = group;
 
-        for addr in recipients {
-            let t_n = calculate_t_n(&ecdh_shared_secret, n)?;
+        for (n, addr) in recipients.into_iter().enumerate() {
+            let t_n = calculate_t_n(&ecdh_shared_secret, n as u32)?;
 
             let res = t_n.public_key(&secp);
             let reskey = res.combine(&addr.get_spend_key())?;
             let (reskey_xonly, _) = reskey.x_only_public_key();
 
-            let entry = result.entry(addr.into()).or_default();
+            let entry = result.entry(addr).or_default();
             entry.push(reskey_xonly);
-            n += 1;
         }
     }
     Ok(result)
