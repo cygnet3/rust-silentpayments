@@ -39,10 +39,12 @@ Check out the `examples` folder for some simple sending and receiving examples.
 These examples are still very elementary, and will be expanded later.
 In the meantime, you can look at `tests/vector_tests.rs` to see how sending and receiving works in more detail.
 
-We are also working on a [client](https://github.com/cygnet3/sp-client) that implements sending and receiving.
-This client can be used as a basis for building a silent payments wallet.
-Even if that isn't directly useful for you, it can still be a good resource for showing
-how this library can be integrated with wallets.
+We are also working on another project called [SPDK](https://github.com/cygnet3/spdk)
+(Silent Payments Development Kit) which builds on this library.
+SPDK can be used as a basis for building a silent payments wallet.
+It allows for scanning for incoming payments, as well as sending.
+Even if SPDK itself doesn't seem interesting to you, it could still be a good resource
+for showing how this library can be integrated with wallets.
 
 ## Tests
 
