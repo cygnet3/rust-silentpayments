@@ -15,6 +15,7 @@ use std::{
     fmt,
 };
 
+use crate::secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use crate::{
     utils::{
         common::{calculate_P_n, calculate_t_n},
@@ -23,7 +24,6 @@ use crate::{
     Error, Network, Result, SilentPaymentAddress,
 };
 use bimap::BiMap;
-use secp256k1::{Parity, PublicKey, Scalar, Secp256k1, SecretKey, XOnlyPublicKey};
 use serde::{
     de::{self, SeqAccess, Visitor},
     ser::{SerializeStruct, SerializeTuple},
@@ -177,6 +177,7 @@ impl<'de> Deserialize<'de> for SerializablePubkey {
                 V: SeqAccess<'de>,
             {
                 let mut arr = [0u8; 33];
+                #[allow(clippy::needless_range_loop)]
                 for i in 0..33 {
                     arr[i] = seq
                         .next_element()?
@@ -390,7 +391,7 @@ impl Receiver {
         ecdh_shared_secret: &PublicKey,
         pubkeys_to_check: Vec<XOnlyPublicKey>,
     ) -> Result<HashMap<Option<Label>, HashMap<XOnlyPublicKey, Scalar>>> {
-        let secp = secp256k1::Secp256k1::new();
+        let secp = crate::secp256k1::Secp256k1::new();
 
         let mut found: HashMap<Option<Label>, HashMap<XOnlyPublicKey, Scalar>> = HashMap::new();
         let mut n_found: u32 = 0;

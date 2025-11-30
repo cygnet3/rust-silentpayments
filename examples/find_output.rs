@@ -19,7 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
 
     // Parse the mnemonic phrase from the first command-line argument
-    let m = Mnemonic::from_str(&args.get(1).unwrap())?;
+    let m = Mnemonic::from_str(args.get(1).unwrap())?;
 
     // Get the transaction hex string from the second command-line argument
     let tx_hex = args.get(2).unwrap();
@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let spks: Vec<&str> = args.get(3).unwrap().split_whitespace().collect();
 
     // Deserialize the transaction hex string into a Transaction object
-    let tx: Transaction = deserialize(Vec::from_hex(&tx_hex)?.as_slice())?;
+    let tx: Transaction = deserialize(Vec::from_hex(tx_hex)?.as_slice())?;
 
     // Assert that the number of inputs in the transaction matches the number of scriptpubkeys provided
     assert!(tx.input.len() == spks.len());
@@ -110,7 +110,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     for (label, key_map) in my_outputs {
         println!("Found {} output(s) with label {:?}", key_map.len(), label);
         for (xonly, sk) in key_map {
-            let spending_key = spend_privkey.clone().add_tweak(&sk).unwrap();
+            let spending_key = spend_privkey.add_tweak(&sk).unwrap();
             let wif = PrivateKey::from_slice(&spending_key.secret_bytes(), Network::Signet)
                 .unwrap()
                 .to_wif();

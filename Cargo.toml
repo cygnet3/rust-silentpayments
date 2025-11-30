@@ -19,9 +19,12 @@ crate-type = ["lib"]
 default = ["sending", "receiving"]
 sending = []
 receiving = []
+secp_28 = ["dep:secp_28"]
+secp_29 = ["dep:secp_29"]
 
 [dependencies]
-secp256k1 = {version = "0.28.1", features = ["rand"] }
+secp_28 = {version = "0.28.1", features = ["rand"], package = "secp256k1", optional = true}
+secp_29 = {version = "0.29.1", features = ["rand"], package = "secp256k1", optional = true}
 hex = "0.4"
 bech32 = "0.9"
 bimap = "0.6"
@@ -31,4 +34,4 @@ bitcoin_hashes = "0.13.0"
 
 [dev-dependencies]
 rust-bip39 = { version = "1.0.0", features = ["rand"] }
-bitcoin ={ version = "0.31.1", features = ["serde"] }
+bitcoin ={ version = "0.32.0", features = ["serde"] }

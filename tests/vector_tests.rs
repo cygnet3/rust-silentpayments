@@ -69,7 +69,7 @@ mod tests {
                     Err(e) => panic!("Problem parsing the input: {:?}", e),
                 }
             }
-            if input_priv_keys.len() == 0 {
+            if input_priv_keys.is_empty() {
                 continue;
             }
 
@@ -127,7 +127,7 @@ mod tests {
                     Err(e) => panic!("Problem parsing the input: {:?}", e),
                 }
             }
-            if input_pub_keys.len() == 0 {
+            if input_pub_keys.is_empty() {
                 continue;
             };
 

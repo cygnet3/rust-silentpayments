@@ -14,6 +14,14 @@
 //! Alternatively, have a look at [Sp client](https://github.com/cygnet3/sp-client/tree/master),
 //! which is a WIP wallet client for building silent payment wallets.
 #![allow(dead_code, non_snake_case)]
+
+#[cfg(not(any(feature = "secp_28", feature = "secp_29")))]
+compile_error!("You must select one version of secp256k1 via feature flag");
+#[cfg(all(feature = "secp_28", not(feature = "secp_29")))]
+pub use secp_28 as secp256k1;
+#[cfg(feature = "secp_29")]
+pub use secp_29 as secp256k1;
+
 mod error;
 
 #[cfg(feature = "receiving")]
@@ -23,7 +31,6 @@ pub mod sending;
 pub mod utils;
 
 pub use bitcoin_hashes;
-pub use secp256k1;
 
 pub use crate::error::Error;
 pub use utils::common::Network;

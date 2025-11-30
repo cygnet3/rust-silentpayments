@@ -56,7 +56,7 @@ pub fn read_file() -> Vec<TestData> {
     from_str(&contents).unwrap()
 }
 
-pub fn decode_outputs_to_check(outputs: &Vec<String>) -> Vec<XOnlyPublicKey> {
+pub fn decode_outputs_to_check(outputs: &[String]) -> Vec<XOnlyPublicKey> {
     outputs
         .iter()
         .map(|x| XOnlyPublicKey::from_str(x).unwrap())

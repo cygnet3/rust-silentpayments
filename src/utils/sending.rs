@@ -1,6 +1,6 @@
 //! Sending utility functions.
+use crate::secp256k1::{ecdh::shared_secret_point, PublicKey, Secp256k1, SecretKey};
 use crate::{Error, Result};
-use secp256k1::{ecdh::shared_secret_point, PublicKey, Secp256k1, SecretKey};
 
 use super::hash::calculate_input_hash;
 
@@ -62,14 +62,14 @@ fn get_a_sum_secret_keys(input: &[(SecretKey, bool)]) -> Result<SecretKey> {
         return Err(Error::GenericError("No input provided".to_owned()));
     }
 
-    let secp = secp256k1::Secp256k1::new();
+    let secp = crate::secp256k1::Secp256k1::new();
 
     let mut negated_keys: Vec<SecretKey> = vec![];
 
     for (key, is_taproot) in input {
         let (_, parity) = key.x_only_public_key(&secp);
 
-        if *is_taproot && parity == secp256k1::Parity::Odd {
+        if *is_taproot && parity == crate::secp256k1::Parity::Odd {
             negated_keys.push(key.negate());
         } else {
             negated_keys.push(*key);
