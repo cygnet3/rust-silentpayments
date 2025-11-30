@@ -10,14 +10,14 @@ use serde::ser::Serializer;
 use serde::Deserializer;
 use serde::{Deserialize, Serialize};
 
-pub(crate) fn calculate_t_n(ecdh_shared_secret: &PublicKey, k: u32) -> Result<SecretKey> {
+pub fn calculate_t_n(ecdh_shared_secret: &PublicKey, k: u32) -> Result<SecretKey> {
     let hash = SharedSecretHash::from_ecdh_and_k(ecdh_shared_secret, k).to_byte_array();
     let sk = SecretKey::from_slice(&hash)?;
 
     Ok(sk)
 }
 
-pub(crate) fn calculate_P_n(B_spend: &PublicKey, t_n: Scalar) -> Result<PublicKey> {
+pub fn calculate_P_n(B_spend: &PublicKey, t_n: Scalar) -> Result<PublicKey> {
     let secp = Secp256k1::new();
 
     let P_n = B_spend.add_exp_tweak(&secp, &t_n)?;

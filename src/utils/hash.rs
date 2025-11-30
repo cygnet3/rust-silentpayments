@@ -67,7 +67,7 @@ impl SharedSecretHash {
     }
 }
 
-pub(crate) fn calculate_input_hash(
+pub fn calculate_input_hash(
     outpoints_data: &[(String, u32)],
     A_sum: PublicKey,
 ) -> Result<Scalar, Error> {
