@@ -2,6 +2,7 @@
 //!
 //! This module contains functions that are more 'high-level'
 //! than the basic sending and receiving logic.
+#[cfg(any(feature = "sending", feature = "receiving"))]
 pub(crate) mod hash;
 #[cfg(feature = "receiving")]
 pub mod receiving;

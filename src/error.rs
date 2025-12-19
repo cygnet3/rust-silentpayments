@@ -31,12 +31,14 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+#[cfg(any(feature = "sending", feature = "receiving"))]
 impl From<hex::FromHexError> for Error {
     fn from(e: hex::FromHexError) -> Self {
         Error::InvalidLabel(e.to_string())
     }
 }
 
+#[cfg(feature = "encode")]
 impl From<bech32::Error> for Error {
     fn from(e: bech32::Error) -> Self {
         Error::InvalidAddress(e.to_string())
