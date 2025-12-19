@@ -16,19 +16,21 @@ name = "silentpayments"
 crate-type = ["lib"]
 
 [features]
-default = ["sending", "receiving"]
-sending = []
-receiving = []
+default = ["encode", "sending", "receiving"]
+encode = ["dep:bech32"]
+serde = ["dep:serde"]
+sending = ["dep:bitcoin_hashes", "dep:hex", "encode"]
+receiving = ["dep:bitcoin_hashes", "dep:hex", "dep:bimap", "serde", "encode"]
 
 [dependencies]
 secp256k1 = {version = "0.28.1", features = ["rand"] }
-hex = "0.4"
-bech32 = "0.9"
-bimap = "0.6"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-bitcoin_hashes = "0.13.0"
+hex = { version = "0.4", optional = true }
+bech32 = { version = "0.9", optional = true }
+bimap = { version = "0.6", optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
+bitcoin_hashes = { version = "0.13.0", optional = true }
 
 [dev-dependencies]
 rust-bip39 = { version = "1.0.0", features = ["rand"] }
 bitcoin ={ version = "0.31.1", features = ["serde"] }
+serde_json = "1.0"

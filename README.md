@@ -14,6 +14,47 @@ In the future, the library will probably be expanded to rely on structs from rus
 
 The library is split up in two parts: sending and receiving.
 
+## Feature Flags
+
+This library offers granular feature flags to minimize dependencies for different use cases:
+
+- **default**: Enables all features (`encode`, `sending`, `receiving`)
+- **encode**: Enables string encoding/decoding for `SilentPaymentAddress` (adds `bech32` dependency)
+- **serde**: Enables serde serialization/deserialization for types (adds `serde` dependency)
+- **sending**: Enables sending functionality (adds `bitcoin_hashes`, `hex` dependencies)
+- **receiving**: Enables receiving functionality (adds `bitcoin_hashes`, `hex`, `bimap`, `serde` dependencies)
+
+### Minimal Usage
+
+If you only need the type definitions (`Network` and `SilentPaymentAddress`) without any protocol functionality:
+
+```toml
+[dependencies]
+silentpayments = { version = "0.4", default-features = false }
+```
+
+This configuration only pulls in `secp256k1` as a dependency, significantly reducing the dependency tree for applications that only need to work with silent payment addresses without implementing the full protocol.
+
+**Bring Your Own Parser**: Even without the `encode` feature, you can construct a `SilentPaymentAddress` using `SilentPaymentAddress::new()` if you parse the bech32 yourself. This is useful if your application already has a bech32 parser and you want to avoid duplicate dependencies. The constructor documentation includes the complete bech32 format specification.
+
+### Custom Feature Combinations
+
+You can enable only the features you need:
+
+```toml
+# Just types and string encoding (no protocol implementation)
+silentpayments = { version = "0.4", default-features = false, features = ["encode"] }
+
+# Types with serde support (no protocol or encoding)
+silentpayments = { version = "0.4", default-features = false, features = ["serde"] }
+
+# Only sending capability
+silentpayments = { version = "0.4", default-features = false, features = ["sending"] }
+
+# Only receiving capability
+silentpayments = { version = "0.4", default-features = false, features = ["receiving"] }
+```
+
 ## Sending
 
 For sending to a silent payment address, you can call the `sender::generate_recipient_pubkeys` function.
