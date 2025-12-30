@@ -148,7 +148,7 @@ impl Serialize for SerializablePubkey {
         S: serde::Serializer,
     {
         let mut seq = serializer.serialize_tuple(self.0.len())?;
-        for element in self.0.as_ref() {
+        for element in <[u8; 33] as AsRef<[u8]>>::as_ref(&self.0) {
             seq.serialize_element(element)?;
         }
         seq.end()
